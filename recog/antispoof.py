@@ -59,7 +59,7 @@ CONFIG = {
     "mediapipe_model_path":   "models/face_landmarker.task", # Pindahkan modelmu kesini
     "yolo_threshold":         0.4,
     "recognition_threshold":  0.45,
-    "camera_index":           0,      
+    "camera_index":           1,      
     "camera_width":           640,
     "camera_height":          480,
     "max_fps":                15,     
@@ -264,7 +264,7 @@ def detect_and_recognize(frame, yolo_model, rec_model, face_database, cfg, prev_
             
             matched_prev = next((p for p in (prev_detections or []) if boxes_overlap(new_box, p['box'], 0.3)), None)
             
-            if matched_prev is None or matched_prev['name'] == 'Unknown':
+            if matched_prev is None or matched_prev.get('name') == 'Unknown':
                 pad_x, pad_y = int((x2 - x1) * 0.1), int((y2 - y1) * 0.1)
                 x1_p, y1_p = max(0, x1 - pad_x), max(0, y1 - pad_y)
                 x2_p, y2_p = min(frame.shape[1], x2 + pad_x), min(frame.shape[0], y2 + pad_y)
@@ -278,7 +278,14 @@ def detect_and_recognize(frame, yolo_model, rec_model, face_database, cfg, prev_
                 
                 detections.append({"box": new_box, **rec_data, "is_new": True})
             else:
-                detections.append({"box": new_box, "name": matched_prev['name'], "nim": matched_prev['nim'], "conf": matched_prev['conf'], "is_recognized": matched_prev['is_recognized'], "is_new": False})
+                detections.append({
+                    "box": new_box, 
+                    "name": matched_prev.get('name', 'Unknown'), 
+                    "nim": matched_prev.get('nim', '-'), 
+                    "conf": matched_prev.get('conf', matched_prev.get('confidence', 0.0)), 
+                    "is_recognized": matched_prev.get('is_recognized', False), 
+                    "is_new": False
+                })
                 
     return detections
 
@@ -370,8 +377,16 @@ def processing_state_thread(yolo_model, rec_model, liveness_model, face_database
             x1, y1, x2, y2 = det["box"]
             color = (0, 255, 0) if det["is_recognized"] else (0, 165, 255)
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
-            faces_data.append({'x1': int(x1), 'y1': int(y1), 'x2': int(x2), 'y2': int(y2), 'confidence': det["conf"], 'name': det["name"], 'is_recognized': det["is_recognized"]})
-            
+            faces_data.append({
+            'x1': int(x1), 
+            'y1': int(y1), 
+            'x2': int(x2), 
+            'y2': int(y2), 
+            'confidence': det.get("conf", det.get("confidence", 0.0)), 
+            'name': det.get("name", "Unknown"), # Menggunakan "Unknown" jika name tidak ada
+            'is_recognized': det.get("is_recognized", False) # Menggunakan False jika is_recognized tidak ada
+            })
+
             if user_data is None:
                 if status != 'liveness_challenge': 
                     status = 'scanning'
@@ -386,7 +401,11 @@ def processing_state_thread(yolo_model, rec_model, liveness_model, face_database
                     elif liveness_passed:
                         if (now - last_granted_time) > 10 or last_granted_identity != det["nim"]:
                             status = 'granted'
-                            user_data = {'nama': det["name"], 'nim': det["nim"], 'confidence': det["conf"]}
+                            user_data = {
+                                'nama': det.get("name", "Tidak Dikenal"), 
+                                'nim': det.get("nim", "-"), 
+                                'confidence': det.get("conf", det.get("confidence", 0.0))
+                            }
                             last_granted_time = now
                             last_granted_identity = det["nim"]
                             
