@@ -1,3 +1,49 @@
+# UI TA - Stand-alone Face Recognition System
+
+Sistem autentikasi akses gate parkir motor menggunakan pengenalan wajah (Face Recognition) secara stand-alone untuk Tugas Akhir di Telkom University.
+
+## 🚀 Struktur Proyek
+
+Proyek ini terbagi menjadi dua bagian:
+1.  **Frontend**: Web dashboard menggunakan Vite + React.
+2.  **Recog Engine**: Pemrosesan AI menggunakan YOLOv11 dan ArcFace untuk deteksi dan pengenalan wajah.
+
+## 🛠️ Persyaratan Sistem
+
+*   **Node.js**: Versi 18 atau lebih baru.
+*   **Python**: Versi 3.10 atau 3.11 (Sangat disarankan).
+*   **Hardware**: Kamera (Webcam) untuk input stream video.
+
+## 🔧 Panduan Instalasi & Penggunaan
+
+### 1. Setup Frontend (Vite + React)
+```bash
+# Instalasi library frontend
+npm install
+
+# Menjalankan server development
+npm run dev
+
+# Masuk ke folder backend
+cd recog
+
+# Membuat virtual environment baru (Windows)
+python -m venv venv_recog
+
+# Mengaktifkan virtual environment (Windows)
+.\venv_recog\Scripts\activate
+
+# Update pip ke versi terbaru
+python -m pip install --upgrade pip
+
+# Masuk ke folder recog
+# Buat venv
+# Masuk ke folder venv
+# Instalasi semua library yang dibutuhkan
+pip install -r requirements.txt
+
+
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
