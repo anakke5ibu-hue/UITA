@@ -1,0 +1,47 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Virtual Environment
+recog/venv_UI/
+venv/
+ENV/
+
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data & Models (Sangat disarankan karena ukurannya besar)
+recog/models/
+*.pkl
+
+venv_UI/
+recog/venv_recog/
+node_modules/
+dist/
+*.bin
+*.dll
+*.pyd
