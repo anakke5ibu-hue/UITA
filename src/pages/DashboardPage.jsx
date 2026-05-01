@@ -3,30 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import logo from '../assets/logo-telkom.png'
 
 // ═══════════════════════════════════════════════════════════════
-// KONFIGURASI SUPABASE
+// KONFIGURASI SERVER
 // ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://kcskzlwxnvmvofyscqsr.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjc2t6bHd4bnZtdm9meXNjcXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzk0ODIsImV4cCI6MjA5Mjc1NTQ4Mn0.mpmImOcJWkBFwTynGUos7LmUnSYLqGe0h_KRbYQ3tuw'
-
-// ─── Helper fetch ke Supabase REST API ───────────────────────
-const sbFetch = (path, options = {}) => {
-  const headers = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  }
-  // Prefer header hanya untuk POST/DELETE, tidak untuk GET
-  if (options.method === 'POST') headers['Prefer'] = 'return=minimal'
-  return fetch(`${SUPABASE_URL}/rest/v1${path}`, { ...options, headers })
-}
+const SERVER_URL = 'http://localhost:8001'
 
 // ─── Simpan 1 log ke tabel log_akses ─────────────────────────
 const saveLog = async (entry) => {
-   if (entry.status !== 'GRANTED') return
+  if (entry.status !== 'GRANTED') return
   try {
-    const res = await sbFetch('/log_akses', {
+    const res = await fetch(`${SERVER_URL}/log_akses`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nama: entry.nama,
         nim: entry.nim,
@@ -38,16 +25,16 @@ const saveLog = async (entry) => {
       }),
     })
     const text = await res.text()
-    console.log('Supabase response:', res.status, text)  // ← tambah ini
+    console.log('Server response:', res.status, text)
   } catch (e) {
     console.error('Gagal simpan log:', e)
   }
 }
 
-// ─── Ambil semua log dari Supabase ───────────────────────────
+// ─── Ambil semua log dari server ─────────────────────────────
 const fetchLogs = async () => {
   try {
-    const res = await sbFetch('/log_akses?select=*&order=no.desc&limit=500')
+    const res = await fetch(`${SERVER_URL}/log_akses`)
     const data = await res.json()
     if (!Array.isArray(data)) return []
     return data.map((r) => ({
@@ -67,48 +54,28 @@ const fetchLogs = async () => {
   }
 }
 
-// ─── Ambil daftar NIM yang diblokir ──────────────────────────
-const fetchBlokir = async () => {
+// ─── Ambil semua user dari tabel users_parkir ────────────────
+const fetchUsers = async () => {
   try {
-    const res = await sbFetch('/blokir_user?select=nim')
+    const res = await fetch(`${SERVER_URL}/users`)
     const data = await res.json()
-    if (!Array.isArray(data)) return new Set()
-    return new Set(data.map((r) => r.nim))
+    if (!Array.isArray(data)) return []
+    return data
   } catch (e) {
-    console.error('Gagal ambil blokir:', e)
-    return new Set()
+    console.error('Gagal ambil users:', e)
+    return []
   }
 }
 
-// ─── Blokir user: insert ke blokir_user ──────────────────────
-const blokirUser = async (user) => {
+// ─── Blokir user: hapus dari users_parkir ────────────────────
+const blokirUser = async (nim) => {
   try {
-    const res = await sbFetch('/blokir_user', {
-      method: 'POST',
-      body: JSON.stringify({
-        nama: user.nama,
-        nim: user.nim,
-        jam_terakhir: user.waktu,
-        tanggal_terakhir: user.tanggal,
-        status: 'DIBLOKIR',
-      }),
-    })
-    return res.ok || res.status === 201
-  } catch (e) {
-    console.error('Gagal blokir:', e)
-    return false
-  }
-}
-
-// ─── Buka blokir: delete dari blokir_user ────────────────────
-const unblokirUser = async (nim) => {
-  try {
-    const res = await sbFetch(`/blokir_user?nim=eq.${encodeURIComponent(nim)}`, {
+    const res = await fetch(`${SERVER_URL}/users/${encodeURIComponent(nim)}`, {
       method: 'DELETE',
     })
-    return res.ok || res.status === 204
+    return res.ok
   } catch (e) {
-    console.error('Gagal unblokir:', e)
+    console.error('Gagal blokir:', e)
     return false
   }
 }
@@ -193,7 +160,7 @@ function DashboardPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('log')
   const [logs, setLogs] = useState([])
-  const [blockedNims, setBlockedNims] = useState(new Set())
+  const [registeredUsers, setRegisteredUsers] = useState([])
   const [filter, setFilter] = useState('hari_ini')
   const [searchQuery, setSearchQuery] = useState('')
   const [isConnected, setIsConnected] = useState(false)
@@ -208,9 +175,9 @@ function DashboardPage() {
   const nimCooldownRef = useRef({})
   const COOLDOWN_MS = 10000
 
-  // ─── Load data awal dari Supabase ────────────────────────────
+  // ─── Load data awal dari server ──────────────────────────────
   useEffect(() => {
-    // Ambil log history dari cloud
+    // Ambil log history dari server
     fetchLogs().then((data) => {
       setLogs(data)
       setStats({
@@ -221,20 +188,20 @@ function DashboardPage() {
       setLoadingLogs(false)
     })
 
-    // Ambil daftar NIM yang diblokir
-    fetchBlokir().then((nimSet) => {
-      setBlockedNims(nimSet)
+    // Ambil daftar user terdaftar dari users_parkir
+    fetchUsers().then((data) => {
+      setRegisteredUsers(data)
       setLoadingBlokir(false)
     })
   }, [])
 
-  // ─── WebSocket: simpan realtime ke Supabase ──────────────────
+  // ─── WebSocket: simpan realtime ke server ────────────────────
   useEffect(() => {
     const connect = () => {
       const ws = new WebSocket('ws://localhost:8000/ws/detect')
       wsRef.current = ws
 
-      ws.onopen = () => { setIsConnected(true); setWsStatus('Terhubung') }
+      ws.onopen = () => { setIsConnected(true); setWsStatus('Terhubung') }  
       ws.onclose = () => {
         setIsConnected(false)
         setWsStatus('Terputus — mencoba ulang...')
@@ -271,7 +238,7 @@ function DashboardPage() {
             confidence: isGranted ? data.user?.confidence || 0 : 0,
           }
 
-          // Simpan ke Supabase (background)
+          // Simpan ke server (background)
           saveLog(newEntry)
 
           // Update tampilan langsung tanpa tunggu Supabase
@@ -323,28 +290,13 @@ function DashboardPage() {
     finally { setExporting(false) }
   }
 
-  // ─── Blokir & Unblokir (tersimpan ke Supabase) ───────────────
+  // ─── Blokir: hapus user dari users_parkir di server ─────────
   const handleBlokir = async (user) => {
     setBlokirAction(user.nim)
-    const ok = await blokirUser(user)
-    if (ok) setBlockedNims((prev) => new Set([...prev, user.nim]))
+    const ok = await blokirUser(user.nim)
+    if (ok) setRegisteredUsers((prev) => prev.filter((u) => u.nim !== user.nim))
     setBlokirAction(null)
   }
-
-  const handleUnblokir = async (nim) => {
-    setBlokirAction(nim)
-    const ok = await unblokirUser(nim)
-    if (ok) setBlockedNims((prev) => { const n = new Set(prev); n.delete(nim); return n })
-    setBlokirAction(null)
-  }
-
-  // Daftar unik user GRANTED (dari semua log, tidak cuma hari ini)
-  const uniqueGrantedUsers = (() => {
-    const seen = new Set()
-    return logs
-      .filter((l) => l.status === 'GRANTED' && l.nim !== '-')
-      .filter((l) => { if (seen.has(l.nim)) return false; seen.add(l.nim); return true })
-  })()
 
   // ─── RENDER ──────────────────────────────────────────────────
   return (
@@ -555,12 +507,10 @@ function DashboardPage() {
                   <span className="w-8 h-8 border-2 border-gray-700 border-t-red-500 rounded-full animate-spin inline-block mb-3" />
                   <p className="text-gray-500 text-sm">Memuat data blokir...</p>
                 </div>
-              ) : uniqueGrantedUsers.length === 0 ? (
+              ) : registeredUsers.length === 0 ? (
                 <div className="py-20 text-center">
                   <p className="text-4xl mb-3">👤</p>
-                  <p className="text-gray-500 text-sm">
-                    {!isConnected ? 'WebSocket tidak terhubung' : 'Belum ada pengguna terdeteksi'}
-                  </p>
+                  <p className="text-gray-500 text-sm">Belum ada pengguna terdaftar</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -576,42 +526,27 @@ function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {uniqueGrantedUsers.map((user) => {
-                        const isBlocked = blockedNims.has(user.nim)
+                      {registeredUsers.map((user) => {
                         const isProcessing = blokirAction === user.nim
                         return (
                           <tr key={user.nim} className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors">
                             <td className="px-5 py-3.5 text-sm text-white font-medium">{user.nama}</td>
                             <td className="px-5 py-3.5 text-sm text-gray-400 font-mono">{user.nim}</td>
-                            <td className="px-5 py-3.5 text-sm text-gray-500 hidden md:table-cell">{user.waktu}</td>
-                            <td className="px-5 py-3.5 text-sm text-gray-500 hidden sm:table-cell">{user.tanggal}</td>
+                            <td className="px-5 py-3.5 text-sm text-gray-500 hidden md:table-cell">{user.jam_terakhir || '—'}</td>
+                            <td className="px-5 py-3.5 text-sm text-gray-500 hidden sm:table-cell">{user.tanggal_terakhir || '—'}</td>
                             <td className="px-5 py-3.5">
-                              {isBlocked
-                                ? <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-900/60 text-red-400 border border-red-500/40">DIBLOKIR</span>
-                                : <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">AKTIF</span>}
+                              <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">AKTIF</span>
                             </td>
                             <td className="px-5 py-3.5">
-                              {isBlocked ? (
-                                <button
-                                  onClick={() => handleUnblokir(user.nim)}
-                                  disabled={isProcessing}
-                                  className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-green-400 px-3 py-1.5 rounded-lg border border-gray-700 transition-all disabled:opacity-50"
-                                >
-                                  {isProcessing
-                                    ? <span className="w-3 h-3 border border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-                                    : '✓'} Buka Blokir
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleBlokir(user)}
-                                  disabled={isProcessing}
-                                  className="flex items-center gap-1.5 text-xs bg-red-900/60 hover:bg-red-800 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/40 transition-all disabled:opacity-50"
-                                >
-                                  {isProcessing
-                                    ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                                    : '🚫'} Blokir
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleBlokir(user)}
+                                disabled={isProcessing}
+                                className="flex items-center gap-1.5 text-xs bg-red-900/60 hover:bg-red-800 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/40 transition-all disabled:opacity-50"
+                              >
+                                {isProcessing
+                                  ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                                  : '🚫'} Blokir
+                              </button>
                             </td>
                           </tr>
                         )
@@ -621,18 +556,6 @@ function DashboardPage() {
                 </div>
               )}
             </div>
-
-            {blockedNims.size > 0 && (
-              <div className="bg-red-950/30 border border-red-800/50 rounded-2xl p-4 flex items-start gap-3">
-                <span className="text-red-400 text-lg">⚠️</span>
-                <div>
-                  <p className="text-red-300 text-sm font-semibold">{blockedNims.size} Pengguna Diblokir</p>
-                  <p className="text-red-400/60 text-xs mt-0.5">
-                    Tersimpan. Langkah selanjutnya: integrasikan pengecekan blokir.
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

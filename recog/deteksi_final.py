@@ -87,7 +87,7 @@ CHALLENGES      = ['BLINK', 'HEAD', 'SMILE']
 # ─────────────────────────────────────────────────────────────
 # HYBRID RECOGNITION CONFIG
 # ─────────────────────────────────────────────────────────────
-SERVER_ALIF_URL   = "http://100.107.234.128:8000/identify-face"
+SERVER_ALIF_URL   = "http://100.107.234.128:8001/identify-face"
 SUPABASE_URL      = "https://kcskzlwxnvmvofyscqsr.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjc2t6bHd4bnZtdm9meXNjcXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzk0ODIsImV4cCI6MjA5Mjc1NTQ4Mn0.mpmImOcJWkBFwTynGUos7LmUnSYLqGe0h_KRbYQ3tuw"
 SUPABASE_HEADERS  = {
@@ -112,14 +112,15 @@ last_granted_time     = 0
 last_granted_identity = None
 
 # ─────────────────────────────────────────────────────────────
-# SUPABASE BLOKIR LOGIC
+# SERVER BLOKIR LOGIC
 # ─────────────────────────────────────────────────────────────
+DB_SERVER_URL = "http://localhost:8001"
+
 def refresh_blocked_nims():
     global blocked_nims, blocked_cache_time
     try:
         res = requests.get(
-            f"{SUPABASE_URL}/rest/v1/blokir_user?select=nim",
-            headers=SUPABASE_HEADERS,
+            f"{DB_SERVER_URL}/users",
             timeout=5.0
         )
         if res.status_code == 200:
@@ -136,7 +137,8 @@ def is_blocked(nim: str) -> bool:
     global blocked_cache_time
     if time.time() - blocked_cache_time > BLOCKED_CACHE_TTL:
         refresh_blocked_nims()
-    return nim in blocked_nims
+    return nim not in blocked_nims  # ← tambah "not"
+
 
 # ─────────────────────────────────────────────────────────────
 # ANTI-SPOOFING: LIVENESS METRICS
