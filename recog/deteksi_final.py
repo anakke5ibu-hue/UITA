@@ -60,7 +60,7 @@ CONFIG = {
     "mediapipe_model_path":     "models/face_landmarker.task",
     "yolo_threshold":           0.5,
     "recognition_threshold":    0.5,
-    "camera_index":             0,
+    "camera_index":             1,
     "camera_width":             640,
     "camera_height":            480,
     "max_fps":                  15,

@@ -11,20 +11,12 @@ function DisplayGatePage() {
   const [recentLogs, setRecentLogs] = useState([])
   const [systemStatus, setSystemStatus] = useState('menunggu')
   const [fps, setFps] = useState(0)
-
-  // Liveness state
-  const [livenessPassed, setLivenessPassed] = useState(false)
-  const [livenessChallenge, setLivenessChallenge] = useState('')
-  const [livenessEar, setLivenessEar] = useState(0)
-  const [livenessYaw, setLivenessYaw] = useState(0)
-  const [livenessSmile, setLivenessSmile] = useState(0)
-
+  
   // Refs
   const frameCountRef = useRef(0)
   const lastFpsUpdateRef = useRef(Date.now())
   const overlayTimeoutRef = useRef(null)
   const statusPrevRef = useRef(null)
-
   // Cooldown per NIM - sinkron dengan Dashboard & backend: 10 detik
   const nimCooldownRef = useRef({})
   const COOLDOWN_MS = 10000
@@ -52,106 +44,99 @@ function DisplayGatePage() {
     }
 
     ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.image) setFrame(data.image)
+  try {
+    const data = JSON.parse(event.data)
+    if (data.image) setFrame(data.image)
 
-        // FPS counter
-        frameCountRef.current++
-        const now = Date.now()
-        if (now - lastFpsUpdateRef.current >= 1000) {
-          setFps(frameCountRef.current)
-          frameCountRef.current = 0
-          lastFpsUpdateRef.current = now
+    // FPS counter
+    frameCountRef.current++
+    const now = Date.now()
+    if (now - lastFpsUpdateRef.current >= 1000) {
+      setFps(frameCountRef.current)
+      frameCountRef.current = 0
+      lastFpsUpdateRef.current = now
+    }
+
+    const currentStatus = data.status // 'idle', 'scanning', 'granted', 'denied'
+    const prevStatus = statusPrevRef.current
+
+    // Hanya proses jika status berubah
+    if (currentStatus !== prevStatus) {
+      statusPrevRef.current = currentStatus
+
+      if (currentStatus === 'scanning' || currentStatus === 'idle') {
+        if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
+        setShowOverlay(false)
+      }
+
+      if (currentStatus === 'granted') {
+        // Data dari backend (confidence sudah ada)
+        const detection = {
+          nama: data.user?.nama || 'Tidak Dikenali',
+          nim: data.user?.nim || '-',
+          status: 'granted',
+          confidence: data.user?.confidence || 0,
+          waktu: new Date().toLocaleTimeString('id-ID')
         }
+        setCurrentDetection(detection)
+        setSystemStatus('granted')
+        if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
+        setShowOverlay(true)
+        overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 2000)
+      }
 
-        // ========== AMBIL DATA LIVENESS ==========
-        if (data.liveness) {
-          setLivenessPassed(data.liveness.passed || false)
-          setLivenessChallenge(data.liveness.challenge || '')
-          setLivenessEar(data.liveness.ear || 0)
-          setLivenessYaw(data.liveness.yaw || 0)
-          setLivenessSmile(data.liveness.smile || 0)
+      if (currentStatus === 'denied') {
+        // Reset detection dengan nama "Tidak Dikenali"
+        const detection = {
+          nama: 'Tidak Dikenali',
+          nim: '-',
+          status: 'denied',
+          confidence: 0, // atau bisa ambil dari data.user?.confidence jika ada
+          waktu: new Date().toLocaleTimeString('id-ID')
         }
-
-        const currentStatus = data.status // 'idle', 'scanning', 'granted', 'denied'
-        const prevStatus = statusPrevRef.current
-
-        // Hanya proses jika status berubah
-        if (currentStatus !== prevStatus) {
-          statusPrevRef.current = currentStatus
-
-          if (currentStatus === 'scanning' || currentStatus === 'idle') {
-            if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
-            setShowOverlay(false)
-          }
-
-          if (currentStatus === 'granted') {
-            const detection = {
-              nama: data.user?.nama || 'Tidak Dikenali',
-              nim: data.user?.nim || '-',
-              status: 'granted',
-              confidence: data.user?.confidence || 0,
-              waktu: new Date().toLocaleTimeString('id-ID')
-            }
-            setCurrentDetection(detection)
-            setSystemStatus('granted')
-            if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
-            setShowOverlay(true)
-            overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 2000)
-          }
-
-          if (currentStatus === 'denied') {
-            const detection = {
-              nama: 'Tidak Dikenali',
-              nim: '-',
-              status: 'denied',
-              confidence: 0,
-              waktu: new Date().toLocaleTimeString('id-ID')
-            }
-            setCurrentDetection(detection)
-            setSystemStatus('denied')
-            if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
-            setShowOverlay(true)
-            overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 2000)
-          }
-        }
-
-        // Update logs & stats — cooldown 10 detik per NIM
-        if (data.faces && data.faces.length > 0) {
-          if (currentStatus === 'granted' || currentStatus === 'denied') {
-            const isGranted = currentStatus === 'granted'
-            const cooldownKey = isGranted ? (data.user?.nim || 'UNKNOWN') : 'DENIED'
-            const now2 = Date.now()
-            const lastTime = nimCooldownRef.current[cooldownKey] || 0
-
-            if (now2 - lastTime >= COOLDOWN_MS) {
-              nimCooldownRef.current[cooldownKey] = now2
-              const nama = isGranted ? (data.user?.nama || 'Tidak Dikenali') : 'Tidak Dikenali'
-              const nim = isGranted ? (data.user?.nim || '-') : '-'
-              const confidence = isGranted ? (data.user?.confidence || 0) : 0
-              const newLog = {
-                id: now2,
-                nama: nama,
-                nim: nim,
-                status: isGranted ? 'GRANTED' : 'DENIED',
-                waktu: new Date().toLocaleTimeString('id-ID'),
-                confidence: (confidence * 100).toFixed(1)
-              }
-              setRecentLogs(prev => [newLog, ...prev].slice(0, 10))
-              setStats(prev => ({
-                granted: prev.granted + (isGranted ? 1 : 0),
-                denied: prev.denied + (!isGranted ? 1 : 0),
-                total: prev.total + 1
-              }))
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error parsing WebSocket message:', err)
+        setCurrentDetection(detection)
+        setSystemStatus('denied')
+        if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
+        setShowOverlay(true)
+        overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 2000)
       }
     }
 
+    // Update logs & stats — cooldown 10 detik per NIM (sinkron dengan Dashboard)
+    if (data.faces && data.faces.length > 0) {
+      if (currentStatus === 'granted' || currentStatus === 'denied') {
+        const isGranted = currentStatus === 'granted'
+        const cooldownKey = isGranted ? (data.user?.nim || 'UNKNOWN') : 'DENIED'
+        const now2 = Date.now()
+        const lastTime = nimCooldownRef.current[cooldownKey] || 0
+
+        if (now2 - lastTime >= COOLDOWN_MS) {
+          nimCooldownRef.current[cooldownKey] = now2
+          const nama = isGranted ? (data.user?.nama || 'Tidak Dikenali') : 'Tidak Dikenali'
+          const nim = isGranted ? (data.user?.nim || '-') : '-'
+          const confidence = isGranted ? (data.user?.confidence || 0) : 0
+          const newLog = {
+            id: now2,
+            nama: nama,
+            nim: nim,
+            status: isGranted ? 'GRANTED' : 'DENIED',
+            waktu: new Date().toLocaleTimeString('id-ID'),
+            confidence: (confidence * 100).toFixed(1)
+          }
+          setRecentLogs(prev => [newLog, ...prev].slice(0, 10))
+          setStats(prev => ({
+            granted: prev.granted + (isGranted ? 1 : 0),
+            denied: prev.denied + (!isGranted ? 1 : 0),
+            total: prev.total + 1
+          }))
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error('Error parsing WebSocket message:', err)
+  }
+}
     return () => {
       if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current)
       if (ws.readyState === WebSocket.OPEN) ws.close()
@@ -159,9 +144,13 @@ function DisplayGatePage() {
   }, [])
 
   // ========== HELPER FUNCTIONS ==========
-  const formatTimestamp = () => new Date().toLocaleTimeString('id-ID', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-  })
+  const formatTimestamp = () => {
+    return new Date().toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  }
 
   const getStatusColor = () => {
     switch (systemStatus) {
@@ -186,16 +175,6 @@ function DisplayGatePage() {
   }
 
   const statusBadge = getStatusBadge()
-
-  // Instruksi challenge yang ramah user
-  const getChallengeInstruction = () => {
-    switch (livenessChallenge) {
-      case 'BLINK': return '👁️ Kedipkan mata'
-      case 'HEAD': return '↔️ Gelengkan kepala'
-      case 'SMILE': return '😊 Senyum'
-      default: return ''
-    }
-  }
 
   // ========== RENDER ==========
   return (
@@ -236,7 +215,7 @@ function DisplayGatePage() {
       {/* MAIN CONTENT */}
       <div className="max-w-7xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+          
           {/* LEFT COLUMN: VIDEO FEED */}
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
@@ -252,7 +231,7 @@ function DisplayGatePage() {
                   </span>
                 </div>
               </div>
-
+              
               <div className="relative aspect-video bg-slate-900">
                 {frame ? (
                   <img src={frame} alt="Live Feed" className="w-full h-full object-cover" />
@@ -267,28 +246,13 @@ function DisplayGatePage() {
                     <p className="text-slate-600 text-xs mt-1">WebSocket: {isConnected ? 'Terhubung' : 'Menghubungkan...'}</p>
                   </div>
                 )}
-
-                {/* Badge LIVE */}
-                <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-full px-3 py-1.5">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-white text-xs font-bold tracking-widest">LIVE</span>
-                </div>
-
-                {/* Badge Liveness Challenge (hanya muncul saat ada challenge dan belum lulus) */}
-                {!livenessPassed && livenessChallenge && (
-                  <div className="absolute bottom-4 left-4 bg-yellow-600/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-                    <span className="text-white text-sm font-bold">
-                      {getChallengeInstruction()}
-                    </span>
-                  </div>
-                )}
-
-                {/* OVERLAY GRANTED / DENIED */}
+                
+                {/* OVERLAY - Muncul 2 detik setelah deteksi selesai, hilang saat scanning/idle
                 {showOverlay && currentDetection && (systemStatus === 'granted' || systemStatus === 'denied') && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className={`text-center p-8 rounded-2xl border-2 shadow-2xl transform transition-all duration-300 scale-100 ${
-                      systemStatus === 'granted'
-                        ? 'bg-green-900/90 border-green-500'
+                      systemStatus === 'granted' 
+                        ? 'bg-green-900/90 border-green-500' 
                         : 'bg-red-900/90 border-red-500'
                     }`}>
                       <div className={`text-6xl mb-3 ${systemStatus === 'granted' ? 'text-green-400' : 'text-red-400'}`}>
@@ -312,11 +276,11 @@ function DisplayGatePage() {
                         <p className="text-slate-300 text-sm">Wajah tidak dikenali dalam database</p>
                       )}
                     </div>
-                  </div>
-                )}
+                  </div> */}
+                {/* )} */}
               </div>
             </div>
-
+            
             <div className="lg:hidden bg-slate-800/50 rounded-2xl border border-slate-700 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -332,8 +296,8 @@ function DisplayGatePage() {
 
           {/* RIGHT COLUMN: INFO PANELS */}
           <div className="space-y-5">
-
-            {/* Panel 1: Status Sistem (ditambah Liveness) */}
+            
+            {/* Panel 1: Status Sistem (sudah ditambah NIM) */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 shadow-xl">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
@@ -352,6 +316,7 @@ function DisplayGatePage() {
                   {currentDetection ? (
                     <>
                       <p className="text-white font-semibold text-lg">{currentDetection.nama}</p>
+                      {/* TAMBAHAN: NIM di baris baru */}
                       <p className="text-white font-semibold text-lg">{currentDetection.nim}</p>
                       <p className="text-slate-500 text-xs mt-1">{currentDetection.waktu}</p>
                     </>
@@ -360,46 +325,9 @@ function DisplayGatePage() {
                   )}
                 </div>
               </div>
-
-              {/* Liveness Info */}
-              <div className="mt-4 pt-3 border-t border-slate-700/50">
-                <div className="flex items-center justify-between">
-                  <p className="text-slate-400 text-[10px] uppercase tracking-wider">Liveness Check</p>
-                  {!livenessPassed && livenessChallenge && (
-                    <span className="text-yellow-400 text-[9px] font-mono animate-pulse">WAITING</span>
-                  )}
-                </div>
-                {!livenessPassed ? (
-                  <div className="mt-1">
-                    <p className="text-yellow-400 text-xs font-mono flex items-center gap-1">
-                      <span>⚠️</span> Challenge: {livenessChallenge || '—'}
-                    </p>
-                    <p className="text-slate-500 text-[9px] mt-1">Lakukan gerakan untuk membuka akses</p>
-                  </div>
-                ) : (
-                  <p className="text-green-400 text-xs font-mono flex items-center gap-1 mt-1">
-                    ✓ Liveness verified
-                  </p>
-                )}
-                {/* Opsional: tampilkan nilai sensor (untuk debug, bisa dihapus) */}
-                <div className="grid grid-cols-3 gap-2 mt-2 text-[9px] text-slate-500">
-                  <div className="flex flex-col items-center bg-slate-900/30 rounded p-1">
-                    <span>👁️ Blink</span>
-                    <span className="font-mono">{livenessEar.toFixed(2)}</span>
-                  </div>
-                  <div className="flex flex-col items-center bg-slate-900/30 rounded p-1">
-                    <span>🔄 Head</span>
-                    <span className="font-mono">{livenessYaw.toFixed(2)}</span>
-                  </div>
-                  <div className="flex flex-col items-center bg-slate-900/30 rounded p-1">
-                    <span>😊 Smile</span>
-                    <span className="font-mono">{livenessSmile.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {/* Panel 2: Statistik (tidak berubah) */}
+            {/* Panel 2: Statistik */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 shadow-xl">
               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-4">
                 Statistik Hari Ini
@@ -420,7 +348,7 @@ function DisplayGatePage() {
               </div>
             </div>
 
-            {/* Panel 3: Activity Log (tidak berubah) */}
+            {/* Panel 3: Activity Log */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-700">
                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
@@ -463,7 +391,7 @@ function DisplayGatePage() {
               </div>
             </div>
 
-            {/* Panel 4: Informasi Sistem (tidak berubah) */}
+            {/* Panel 4: Informasi Sistem */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-4 shadow-xl">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
@@ -476,7 +404,7 @@ function DisplayGatePage() {
               </div>
               <div className="mt-3 pt-3 border-t border-slate-700/50">
                 <p className="text-slate-600 text-[9px] text-center">
-                  Face Recognition Gate System v2.0 — Anti Spoof
+                  Face Recognition Gate System v1.0 — Telkom University
                 </p>
               </div>
             </div>
