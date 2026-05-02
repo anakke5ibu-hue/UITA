@@ -169,7 +169,6 @@ function DashboardPage() {
   const [loadingLogs, setLoadingLogs] = useState(true)
   const [loadingBlokir, setLoadingBlokir] = useState(true)
   const [blokirAction, setBlokirAction] = useState(null)
-  const [blokirSearchQuery, setBlokirSearchQuery] = useState('')
   const [stats, setStats] = useState({ granted: 0, denied: 0, total: 0 })
 
   const wsRef = useRef(null)
@@ -298,13 +297,6 @@ function DashboardPage() {
     if (ok) setRegisteredUsers((prev) => prev.filter((u) => u.nim !== user.nim))
     setBlokirAction(null)
   }
-
-  // ─── Filter Blokir User ──────────────────────────────────────
-  const filteredBlokirUsers = registeredUsers.filter((u) => {
-    if (!blokirSearchQuery) return true
-    const q = blokirSearchQuery.toLowerCase()
-    return u.nama.toLowerCase().includes(q) || u.nim.toLowerCase().includes(q)
-  })
 
   // ─── RENDER ──────────────────────────────────────────────────
   return (
@@ -510,40 +502,10 @@ function DashboardPage() {
           <div className="flex flex-col gap-5">
             <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-800">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-white text-sm">Manajemen Blokir Pengguna</p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      Data blokir tersimpan.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-56">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
-                      <input
-                        type="text"
-                        value={blokirSearchQuery}
-                        onChange={(e) => setBlokirSearchQuery(e.target.value)}
-                        placeholder="Cari nama / NIM..."
-                        className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-600/50 placeholder-gray-600"
-                      />
-                    </div>
-                    {blokirSearchQuery && (
-                      <button
-                        onClick={() => setBlokirSearchQuery('')}
-                        className="text-gray-500 hover:text-white text-xs px-2 py-2 rounded-lg bg-gray-800 border border-gray-700 transition-all"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {!loadingBlokir && registeredUsers.length > 0 && (
-                  <p className="text-gray-600 text-xs mt-2.5">
-                    Menampilkan <span className="text-gray-400 font-semibold">{filteredBlokirUsers.length}</span> dari <span className="text-gray-400 font-semibold">{registeredUsers.length}</span> pengguna
-                    {blokirSearchQuery && <> untuk "<span className="text-gray-400">{blokirSearchQuery}</span>"</>}
-                  </p>
-                )}
+                <p className="font-semibold text-white text-sm">Manajemen Blokir Pengguna</p>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  Data blokir tersimpan.
+                </p>
               </div>
 
               {loadingBlokir ? (
@@ -555,14 +517,6 @@ function DashboardPage() {
                 <div className="py-20 text-center">
                   <p className="text-4xl mb-3">👤</p>
                   <p className="text-gray-500 text-sm">Belum ada pengguna terdaftar</p>
-                </div>
-              ) : filteredBlokirUsers.length === 0 ? (
-                <div className="py-20 text-center">
-                  <p className="text-4xl mb-3">🔍</p>
-                  <p className="text-gray-500 text-sm">Tidak ada pengguna dengan kata kunci "<span className="text-gray-400">{blokirSearchQuery}</span>"</p>
-                  <button onClick={() => setBlokirSearchQuery('')} className="mt-3 text-xs text-red-400 hover:text-red-300 underline">
-                    Hapus filter pencarian
-                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -578,7 +532,7 @@ function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredBlokirUsers.map((user) => {
+                      {registeredUsers.map((user) => {
                         const isProcessing = blokirAction === user.nim
                         return (
                           <tr key={user.nim} className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors">
