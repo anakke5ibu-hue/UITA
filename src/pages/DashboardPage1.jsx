@@ -334,12 +334,6 @@ function DashboardPage() {
             {tab.label}
           </button>
         ))}
-        <button
-          onClick={() => navigate('/registrasi')}
-          className="px-5 py-3.5 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-400 hover:text-white"
-        >
-          ➕ Registrasi User
-        </button>
       </div>
 
       {/* KONTEN */}
