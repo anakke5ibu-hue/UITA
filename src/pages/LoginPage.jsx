@@ -9,6 +9,7 @@ function LoginPage() {
 
   const handleLogin = () => {
     if (username === 'admin' && password === 'admin123') {
+      localStorage.setItem('isLoggedIn', 'true')  // tambah ini
       navigate('/dashboard')
     } else {
       alert('Username atau password salah!')

@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import DisplayGatePage from './pages/DisplayGatePage'
 import RegistrasiPage from './pages/RegistrasiPage'
+import ProtectedRoute from './ProtectedRoute'
 
 function App() {
   return (
@@ -11,9 +12,17 @@ function App() {
       <Routes>
         <Route path="/" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/registrasi" element={<RegistrasiPage />} />
         <Route path="/gate" element={<DisplayGatePage />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/registrasi" element={
+          <ProtectedRoute>
+            <RegistrasiPage />
+          </ProtectedRoute>
+        } />
       </Routes>
     </BrowserRouter>
   )

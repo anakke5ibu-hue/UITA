@@ -319,8 +319,13 @@ function DashboardPage() {
             <p className="text-gray-500 text-[11px]">Telkom University — Dashboard</p>
           </div>
         </div>
-        <button onClick={() => navigate('/')} className="text-gray-400 hover:text-red-400 text-sm transition-all">
-          Logout →
+        <button   onClick={() => {
+              localStorage.removeItem('isLoggedIn')
+              navigate('/')
+            }} 
+            className="text-gray-400 hover:text-red-400 text-sm transition-all"
+          >
+            Logout →
         </button>
       </nav>
 
