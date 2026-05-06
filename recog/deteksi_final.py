@@ -88,13 +88,13 @@ CHALLENGES      = ['BLINK', 'HEAD', 'SMILE']
 # HYBRID RECOGNITION CONFIG
 # ─────────────────────────────────────────────────────────────
 SERVER_ALIF_URL   = "http://100.107.234.128:8001/identify-face"
-SUPABASE_URL      = "https://kcskzlwxnvmvofyscqsr.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjc2t6bHd4bnZtdm9meXNjcXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzk0ODIsImV4cCI6MjA5Mjc1NTQ4Mn0.mpmImOcJWkBFwTynGUos7LmUnSYLqGe0h_KRbYQ3tuw"
-SUPABASE_HEADERS  = {
-    "apikey": SUPABASE_ANON_KEY,
-    "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
-    "Content-Type": "application/json",
-}
+# SUPABASE_URL      = "https://kcskzlwxnvmvofyscqsr.supabase.co"
+# SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjc2t6bHd4bnZtdm9meXNjcXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzk0ODIsImV4cCI6MjA5Mjc1NTQ4Mn0.mpmImOcJWkBFwTynGUos7LmUnSYLqGe0h_KRbYQ3tuw"
+# SUPABASE_HEADERS  = {
+#     "apikey": SUPABASE_ANON_KEY,
+#     "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+#     "Content-Type": "application/json",
+# }
 
 # ─────────────────────────────────────────────────────────────
 # STATE & CACHE GLOBAL
@@ -656,7 +656,7 @@ _det_state = {
 }
 
 # ─────────────────────────────────────────────────────────────
-# DETECTION WORKER THREAD — YOLO + ArcFace + MediaPipe (LAMBAT, tapi tidak blokir video)
+# DETECTION WORKER THREAD — YOLO + ArcFace + MediaPipe 
 # ─────────────────────────────────────────────────────────────
 def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database, cfg,
                              detect_queue, stop_event):
