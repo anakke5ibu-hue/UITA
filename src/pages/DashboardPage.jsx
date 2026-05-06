@@ -5,7 +5,7 @@ import logo from '../assets/logo-telkom.png'
 // ═══════════════════════════════════════════════════════════════
 // KONFIGURASI SERVER
 // ═══════════════════════════════════════════════════════════════
-const SERVER_URL = 'http://localhost:8001'
+const SERVER_URL = 'http://100.107.234.128:8001'
 
 // ─── Simpan 1 log ke tabel log_akses ─────────────────────────
 const saveLog = async (entry) => {

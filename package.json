@@ -1,8 +1,20 @@
 {
   "name": "face-recognition-web",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
+  "description": "Sistem autentikasi akses gate parkir motor menggunakan pengenalan wajah (Face Recognition) secara stand-alone untuk Tugas Akhir di Telkom University.",
+  "homepage": "https://github.com/anakke5ibu-hue/UITA#readme",
+  "bugs": {
+    "url": "https://github.com/anakke5ibu-hue/UITA/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anakke5ibu-hue/UITA.git"
+  },
+  "license": "ISC",
+  "author": "",
   "type": "module",
+  "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

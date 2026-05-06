@@ -114,7 +114,7 @@ last_granted_identity = None
 # ─────────────────────────────────────────────────────────────
 # SERVER BLOKIR LOGIC
 # ─────────────────────────────────────────────────────────────
-DB_SERVER_URL = "http://localhost:8001"
+DB_SERVER_URL = "http://100.107.234.128:8001"
 
 def refresh_blocked_nims():
     global blocked_nims, blocked_cache_time
