@@ -5,40 +5,40 @@
 # Dynamic ROI, Adaptive Motion, FastAPI WebSocket
 # ═══════════════════════════════════════════════════════════════
 
-import os 
-import sys 
-import cv2 
-import numpy as np 
-import pickle 
-import time 
-import base64 
-import json 
-import random 
-import asyncio 
-import threading 
-import queue 
-import requests 
-# import warnings 
-from pathlib import Path 
+import os #untuk operating sistem ke windows
+import sys #interaksi mesin python (interpreter python)
+import cv2 #opencv memproses gammbar, bukacam, detect wajah
+import numpy as np #ngolah angka dan matrix
+import pickle #nyimpan dan load data python (face database)
+import time #untuk waktu dan delay
+import base64 #encode gambar ke base64 untuk kirim ke browser
+import json #ngolah data json (kirim ke browser)
+import random #random untuk generate id unik
+import asyncio #untuk async programming (FastAPI async) detection dan capture di thread terpisah
+import threading #untuk jalankan capture dan detection di thread terpisah 
+import queue #untuk komunikasi antar thread (frame capture ke detection)
+import requests #untuk HTTP request (Server + Supabase)
+import warnings #untuk suppress warning yang tidak penting (OpenVINO, MediaPipe)
+from pathlib import Path #untuk manipulasi path file (model, database)
 from collections import deque
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore')
 
-# # ─────────────────────────────────────────────────────────────
-# # SUPPRESS MEDIAPIPE LOGS & INITIALIZE
-# # ─────────────────────────────────────────────────────────────
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# os.environ['GLOG_minloglevel'] = '2'
-# os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
+# ─────────────────────────────────────────────────────────────
+# SUPPRESS MEDIAPIPE LOGS & INITIALIZE
+# ─────────────────────────────────────────────────────────────
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['GLOG_minloglevel'] = '2'
+os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
 
-# _real_stderr = sys.stderr
-# sys.stderr = open(os.devnull, 'w')
+_real_stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
 import mediapipe as mp
 from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions, RunningMode
-# sys.stderr = _real_stderr
+sys.stderr = _real_stderr
 
 # ─────────────────────────────────────────────────────────────
 # PYTORCH CPU OPTIMIZATION
@@ -60,7 +60,7 @@ CONFIG = {
     "mediapipe_model_path":     "models/face_landmarker.task",
     "yolo_threshold":           0.5,
     "recognition_threshold":    0.5,
-    "camera_index":             0,
+    "camera_index":             1,
     "camera_width":             640,
     "camera_height":            480,
     "max_fps":                  15,
@@ -343,7 +343,7 @@ def load_models(cfg: dict):
         min_tracking_confidence=0.5
     )
     liveness_model = FaceLandmarker.create_from_options(options)
-    # sys.stderr = _real_stderr
+    sys.stderr = _real_stderr
     print(f"✅ MediaPipe Liveness loaded!")
 
     # 4. Face Database
