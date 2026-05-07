@@ -58,15 +58,15 @@ CONFIG = {
     "arcface_model_path":       "models/buffalo_sc_rec.xml",
     "face_database_path":       "models/face_database.pkl",
     "mediapipe_model_path":     "models/face_landmarker.task",
-    "yolo_threshold":           0.5,
-    "recognition_threshold":    0.5,
-    "camera_index":             0,
+    "yolo_threshold":           0.7,
+    "recognition_threshold":    0.8,
+    "camera_index":             1,
     "camera_width":             640,
     "camera_height":            480,
     "max_fps":                  15,
     "motion_threshold":         2000,
     "motion_history":           2,
-    "detection_freeze_frames":  30,
+    "detection_freeze_frames":  20,
     "face_disappear_frames":    5,
     "frame_skip_interval":      6,
     # DYNAMIC ROI
@@ -87,7 +87,7 @@ CHALLENGES      = ['BLINK', 'HEAD', 'SMILE']
 # ─────────────────────────────────────────────────────────────
 # HYBRID RECOGNITION CONFIG
 # ─────────────────────────────────────────────────────────────
-SERVER_ALIF_URL   = "http://100.107.234.128:8001/identify-face"
+SERVER_URL   = "http://localhost:8001/identify-face"
 # SUPABASE_URL      = "https://kcskzlwxnvmvofyscqsr.supabase.co"
 # SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjc2t6bHd4bnZtdm9meXNjcXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzk0ODIsImV4cCI6MjA5Mjc1NTQ4Mn0.mpmImOcJWkBFwTynGUos7LmUnSYLqGe0h_KRbYQ3tuw"
 # SUPABASE_HEADERS  = {
@@ -114,13 +114,13 @@ last_granted_identity = None
 # ─────────────────────────────────────────────────────────────
 # SERVER BLOKIR LOGIC
 # ─────────────────────────────────────────────────────────────
-DB_SERVER_URL = "http://100.107.234.128:8001"
+DB_SERVER_URL = "http://localhost:8001"
 
 def refresh_blocked_nims():
     global blocked_nims, blocked_cache_time
     try:
         res = requests.get(
-            f"{DB_SERVER_URL}/users",
+            f"{DB_SERVER_URL}/blokir_user",
             timeout=5.0
         )
         if res.status_code == 200:
@@ -137,7 +137,7 @@ def is_blocked(nim: str) -> bool:
     global blocked_cache_time
     if time.time() - blocked_cache_time > BLOCKED_CACHE_TTL:
         refresh_blocked_nims()
-    return nim not in blocked_nims  # ← tambah "not"
+    return nim in blocked_nims 
 
 
 # ─────────────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ def load_models(cfg: dict):
     return yolo_model, rec_model, liveness_model, face_database, device
 
 # ─────────────────────────────────────────────────────────────
-# HYBRID RECOGNITION (SERVER ALIF → LOKAL)
+# HYBRID RECOGNITION (SERVER → LOKAL)
 # ─────────────────────────────────────────────────────────────
 def extract_embedding(face_aligned, rec_model):
     """Ekstrak embedding ArcFace dari crop wajah."""
@@ -383,20 +383,14 @@ def extract_embedding(face_aligned, rec_model):
     return emb
 
 def recognize_hybrid(emb, face_database, threshold):
-    """
-    Hybrid recognition: coba Server Alif dulu (timeout 0.5s),
-    fallback ke database lokal jika gagal/timeout.
-    """
-    # 1. Server Alif
     try:
-        res = requests.post(SERVER_ALIF_URL, json={"embedding": emb.tolist()}, timeout=0.5).json()
+        res = requests.post(SERVER_URL, json={"embedding": emb.tolist()}, timeout=0.5).json()
         if res.get("status") == "success":
             d   = res["data"]
             sim = round(float(d.get('similarity', 0)), 4)
             return {
                 'nama': d.get('nama', 'Unknown'),
                 'nim':  d.get('nim', '-'),
-                'program_studi': 'S1 Teknik Telekomunikasi',
                 'confidence': sim,
                 'is_recognized': True,
                 'source': 'Alif'
@@ -411,8 +405,8 @@ def recognize_hybrid(emb, face_database, threshold):
     if sim >= threshold:
         raw  = face_database['names'][idx]
         nim, nama = raw.split('_', 1) if '_' in raw else ('-', raw)
-        return {'nama': nama, 'nim': nim, 'program_studi': '', 'confidence': round(sim, 4), 'is_recognized': True, 'source': 'Local'}
-    return {'nama': 'Unknown', 'nim': '-', 'program_studi': '', 'confidence': round(sim, 4), 'is_recognized': False, 'source': 'Local'}
+        return {'nama': nama, 'nim': nim, 'confidence': round(sim, 4), 'is_recognized': True, 'source': 'Local'}
+    return {'nama': 'Unknown', 'nim': '-', 'confidence': round(sim, 4), 'is_recognized': False, 'source': 'Local'}
 
 # ─────────────────────────────────────────────────────────────
 # MATCH FACE DETECTIONS (IoU-based tracking)

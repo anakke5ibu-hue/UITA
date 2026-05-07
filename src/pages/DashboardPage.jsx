@@ -5,7 +5,7 @@ import logo from '../assets/logo-telkom.png'
 // ═══════════════════════════════════════════════════════════════
 // KONFIGURASI SERVER
 // ═══════════════════════════════════════════════════════════════
-const SERVER_URL = 'http://100.107.234.128:8001'
+const SERVER_URL = 'http://localhost:8001'
 
 // ─── Simpan 1 log ke tabel log_akses ─────────────────────────
 const saveLog = async (entry) => {
@@ -68,10 +68,10 @@ const fetchUsers = async () => {
 }
 
 // ─── Blokir user: hapus dari users_parkir ────────────────────
-const blokirUser = async (nim) => {
+const blockUser = async (nim) => {
   try {
-    const res = await fetch(`${SERVER_URL}/users/${encodeURIComponent(nim)}`, {
-      method: 'DELETE',
+    const res = await fetch(`${SERVER_URL}/users/${encodeURIComponent(nim)}/block`, {
+      method: 'POST',
     })
     return res.ok
   } catch (e) {
@@ -80,8 +80,25 @@ const blokirUser = async (nim) => {
   }
 }
 
+const unblockUser = async (nim) => {
+  try {
+    const res = await fetch(`${SERVER_URL}/users/${encodeURIComponent(nim)}/unblock`, {
+      method: 'POST',
+    })
+    return res.ok
+  } catch (e) {
+    console.error('Gagal unblock:', e)
+    return false
+  }
+}
+
 // ─── Utilitas Tanggal ─────────────────────────────────────────
-const toDateStr = (date) => date.toISOString().split('T')[0]
+const toDateStr = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 const getFilterRange = (filter) => {
   const now = new Date()
@@ -292,12 +309,31 @@ function DashboardPage() {
   }
 
   // ─── Blokir: hapus user dari users_parkir di server ─────────
-  const handleBlokir = async (user) => {
-    setBlokirAction(user.nim)
-    const ok = await blokirUser(user.nim)
-    if (ok) setRegisteredUsers((prev) => prev.filter((u) => u.nim !== user.nim))
-    setBlokirAction(null)
+const handleBlokir = async (user) => {
+  setBlokirAction(user.nim)
+  const ok = await blockUser(user.nim)
+  if (ok) {
+    setRegisteredUsers((prev) =>
+      prev.map((u) =>
+        u.nim === user.nim ? { ...u, is_blocked: true } : u
+      )
+    )
   }
+  setBlokirAction(null)
+}
+
+const handleUnblock = async (user) => {
+  setBlokirAction(user.nim)
+  const ok = await unblockUser(user.nim)
+  if (ok) {
+    setRegisteredUsers((prev) =>
+      prev.map((u) =>
+        u.nim === user.nim ? { ...u, is_blocked: false } : u
+      )
+    )
+  }
+  setBlokirAction(null)
+}
 
   // ─── Filter Blokir User ──────────────────────────────────────
   const filteredBlokirUsers = registeredUsers.filter((u) => {
@@ -448,7 +484,7 @@ function DashboardPage() {
                 <div>
                   <p className="font-semibold text-white text-sm">Log Aktivitas Akses</p>
                   <p className="text-gray-500 text-xs mt-0.5">
-                    {loadingLogs ? 'Memuat dari Supabase...' : 'Tersimpan permanen di cloud ☁️'}
+                    {loadingLogs ? 'Memuat...' : 'Tersimpan permanen di cloud ☁️'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -460,7 +496,7 @@ function DashboardPage() {
               {loadingLogs ? (
                 <div className="py-20 text-center">
                   <span className="w-8 h-8 border-2 border-gray-700 border-t-red-500 rounded-full animate-spin inline-block mb-3" />
-                  <p className="text-gray-500 text-sm">Memuat data dari Supabase...</p>
+                  <p className="text-gray-500 text-sm">Memuat ...</p>
                 </div>
               ) : filteredLogs.length === 0 ? (
                 <div className="py-20 text-center">
@@ -592,18 +628,30 @@ function DashboardPage() {
                             <td className="px-5 py-3.5 text-sm text-gray-500 hidden md:table-cell">{user.jam_terakhir || '—'}</td>
                             <td className="px-5 py-3.5 text-sm text-gray-500 hidden sm:table-cell">{user.tanggal_terakhir || '—'}</td>
                             <td className="px-5 py-3.5">
-                              <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">AKTIF</span>
+                              {user.is_blocked ? (
+                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-900/60 text-red-400 border border-red-500/30">BLOKIR</span>
+                              ) : (
+                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">AKTIF</span>
+                              )}
                             </td>
                             <td className="px-5 py-3.5">
-                              <button
-                                onClick={() => handleBlokir(user)}
-                                disabled={isProcessing}
-                                className="flex items-center gap-1.5 text-xs bg-red-900/60 hover:bg-red-800 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/40 transition-all disabled:opacity-50"
-                              >
-                                {isProcessing
-                                  ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                                  : '🚫'} Blokir
-                              </button>
+                              {user.is_blocked ? (
+                                <button
+                                  onClick={() => handleUnblock(user)}
+                                  disabled={isProcessing}
+                                  className="flex items-center gap-1.5 text-xs bg-green-900/60 hover:bg-green-800 text-green-400 hover:text-white px-3 py-1.5 rounded-lg border border-green-500/40 transition-all disabled:opacity-50"
+                                >
+                                  {isProcessing ? <span className="w-3 h-3 border border-green-400/30 border-t-green-400 rounded-full animate-spin" /> : '🔓'} Unblock
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleBlokir(user)}
+                                  disabled={isProcessing}
+                                  className="flex items-center gap-1.5 text-xs bg-red-900/60 hover:bg-red-800 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/40 transition-all disabled:opacity-50"
+                                >
+                                  {isProcessing ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : '🚫'} Blokir
+                                </button>
+                              )}
                             </td>
                           </tr>
                         )

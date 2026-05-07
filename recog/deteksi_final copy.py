@@ -20,46 +20,46 @@ import queue #untuk komunikasi antar thread (frame capture ke detection)
 import requests #untuk HTTP request (Server + Supabase)
 import warnings #untuk suppress warning yang tidak penting (OpenVINO, MediaPipe)
 from pathlib import Path #untuk manipulasi path file (model, database)
-from collections import deque
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from collections import deque #untuk simpan history frame untuk motion detection
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect #untuk buat server FastAPI dan WebSocket endpoint
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore') #supress OpenVINO and MediaPipe warnings for cleaner output
 
 # ─────────────────────────────────────────────────────────────
 # SUPPRESS MEDIAPIPE LOGS & INITIALIZE
 # ─────────────────────────────────────────────────────────────
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['GLOG_minloglevel'] = '2'
-os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #supress TensorFlow logs (MediaPipe dependency)
+os.environ['GLOG_minloglevel'] = '2' #supress C++ logs from OpenVINO (jika ada)
+os.environ['MEDIAPIPE_DISABLE_GPU'] = '1' #force MediaPipe pakai CPU (lebih stabil di banyak sistem)
 
-_real_stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-import mediapipe as mp
-from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions, RunningMode
-sys.stderr = _real_stderr
+_real_stderr = sys.stderr #(stderr standar error, jalur khusus pesan kesalaahn, warning, diagnosa) backup stderr asli untuk sementara, karena MediaPipe suka banget ngeprint ke stderr walaupun sebenarnya itu info biasa. Kita redirect sementara ke os.devnull saat import MediaPipe, lalu balikin lagi setelahnya. Jadi log kita tetap bersih tanpa noise dari MediaPipe.
+sys.stderr = open(os.devnull, 'w') #redirect stderr ke null sementara untuk suppress logs dari MediaPipe saat import. MediaPipe suka banget ngeprint ke stderr walaupun itu sebenarnya info biasa, jadi kita bersihin log kita dengan cara ini. Setelah import, kita balikin lagi stderr ke normal. Jadi log kita tetap bersih tanpa noise dari MediaPipe.
+import mediapipe as mp #untuk liveness detection (anti-spoofing) menggunakan landmark wajah. MediaPipe ini sangat powerful untuk deteksi landmark wajah secara real-time, dan kita akan gunakan untuk menghitung EAR (Eye Aspect Ratio) untuk deteksi kedipan, serta beberapa metrik lain untuk memastikan wajah yang terdeteksi itu nyata, bukan foto atau video. Kita import setelah redirect stderr agar log kita tetap bersih tanpa noise dari MediaPipe.
+from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions, RunningMode #import class dan options untuk FaceLandmarker dari MediaPipe. FaceLandmarker ini akan kita gunakan untuk deteksi landmark wajah secara real-time, yang sangat berguna untuk liveness detection (anti-spoofing). Kita akan hitung EAR (Eye Aspect Ratio) dari landmark mata untuk deteksi kedipan, serta beberapa metrik lain untuk memastikan wajah yang terdeteksi itu nyata, bukan foto atau video. Kita import setelah redirect stderr agar log kita tetap bersih tanpa noise dari MediaPipe.
+sys.stderr = _real_stderr #balikin stderr ke normal setelah import MediaPipe. Jadi log kita tetap bersih tanpa noise dari MediaPipe, tapi kita tetap bisa lihat warning atau error penting lainnya di log kita. Kita lakukan redirect sementara saat import karena MediaPipe suka banget ngeprint ke stderr walaupun itu sebenarnya info biasa, jadi dengan cara ini kita bisa bersihin log kita dari noise tersebut.
 
 # ─────────────────────────────────────────────────────────────
 # PYTORCH CPU OPTIMIZATION
 # ─────────────────────────────────────────────────────────────
-import torch
-num_cpus = min(os.cpu_count() or 4, 4)
-num_pytorch_cores = max(1, num_cpus // 2)
-torch.set_num_threads(num_pytorch_cores)
-torch.set_num_interop_threads(1)
-print(f"🔧 PyTorch CPU Limit: {num_pytorch_cores} cores (out of {num_cpus})")
+import torch #untuk optimasi penggunaan CPU oleh PyTorch (OpenVINO backend bisa menggunakan PyTorch untuk beberapa operasi, jadi kita batasi agar tidak overload CPU)
+num_cpus = min(os.cpu_count() or 4, 4) #batasi maksimal 4 CPU untuk PyTorch agar tidak overload sistem, terutama di mesin dengan banyak core. Kita set ke setengah dari total CPU yang tersedia, tapi minimal 1 core, untuk memberikan ruang bagi proses lain dan menjaga responsivitas sistem.
+num_pytorch_cores = max(1, num_cpus // 2) #gunakan setengah dari CPU yang tersedia untuk PyTorch agar tidak overload sistem, terutama di mesin dengan banyak core. Kita set ke setengah dari total CPU yang tersedia, tapi minimal 1 core, untuk memberikan ruang bagi proses lain dan menjaga responsivitas sistem.
+torch.set_num_threads(num_pytorch_cores) #batasi jumlah thread yang digunakan PyTorch untuk operasi CPU agar tidak overload sistem. Kita set ke setengah dari total CPU yang tersedia, tapi minimal 1 core, untuk memberikan ruang bagi proses lain dan menjaga responsivitas sistem.
+torch.set_num_interop_threads(1) #batasi thread inter-op PyTorch ke 1 untuk mengurangi overhead pada sistem dengan banyak core. Inter-op threads digunakan untuk operasi yang bisa berjalan paralel, tapi di beberapa kasus bisa menyebabkan overhead yang membuat performa malah turun, jadi kita set ke 1 untuk menjaga stabilitas dan responsivitas sistem.
+print(f"🔧 PyTorch CPU Limit: {num_pytorch_cores} cores (out of {num_cpus})") #print informasi limit CPU untuk PyTorch
 
 # ─────────────────────────────────────────────────────────────
 # KONFIGURASI
 # ─────────────────────────────────────────────────────────────
 CONFIG = {
-    "yolo_model_path":          "models/yolov11n-face_openvino_model",
-    "arcface_model_path":       "models/buffalo_sc_rec.xml",
-    "face_database_path":       "models/face_database.pkl",
-    "mediapipe_model_path":     "models/face_landmarker.task",
+    "yolo_model_path":          "models/yolov11n-face_openvino_model", #(openvino untuk proses intel lebih ringan)path ke model YOLOv11 OpenVINO yang sudah dioptimasi untuk deteksi wajah. Pastikan model ini sudah di-convert ke format OpenVINO (.xml + .bin) dan disimpan di folder models dengan nama yolov11n-face_openvino_model.xml dan yolov11n-face_openvino_model.bin. Model ini akan digunakan untuk mendeteksi wajah di frame video secara real-time.
+    "arcface_model_path":       "models/buffalo_sc_rec.xml", #path ke model ArcFace OpenVINO yang sudah dioptimasi untuk ekstraksi embedding wajah. Pastikan model ini sudah di-convert ke format OpenVINO (.xml + .bin) dan disimpan di folder models dengan nama buffalo_sc_rec.xml dan buffalo_sc_rec.bin. Model ini akan
+    "face_database_path":       "models/face_database.pkl", #path ke file database wajah yang berisi embeddings dan nama-nama orang yang dikenali. File ini harus berupa file pickle (.pkl) yang berisi dictionary dengan keys 'embeddings' (numpy array 2D) dan 'names' (list of strings). Database ini akan digunakan untuk mencocokkan embedding wajah yang terdeteksi dengan nama-nama yang sudah dikenal.
+    "mediapipe_model_path":     "models/face_landmarker.task",#path ke model MediaPipe FaceLandmarker untuk liveness detection (anti-spoofing). Pastikan file model ini sudah disimpan di folder models dengan nama face_landmarker.task. Model ini akan digunakan untuk mendeteksi landmark wajah secara real-time, yang sangat berguna untuk menghitung EAR (Eye Aspect Ratio) untuk deteksi kedipan, serta beberapa metrik lain untuk memastikan wajah yang terdeteksi itu nyata, bukan foto atau video.
     "yolo_threshold":           0.5,
-    "recognition_threshold":    0.5,
+    "recognition_threshold":    0.7,
     "camera_index":             1,
     "camera_width":             640,
     "camera_height":            480,
