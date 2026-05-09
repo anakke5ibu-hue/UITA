@@ -37,17 +37,20 @@ const fetchLogs = async () => {
     const res = await fetch(`${SERVER_URL}/log_akses`)
     const data = await res.json()
     if (!Array.isArray(data)) return []
-    return data.map((r) => ({
-      id: r.no,
-      nama: r.nama,
-      nim: r.nim,
-      waktu: r.waktu,
-      tanggal: r.tanggal,
-      timestamp: new Date(`${r.tanggal}T00:00:00`),
-      gate: r.gate,
-      confidence: r.confidence,
-      status: r.status,
-    }))
+    return data.map((r) => {
+      const tanggalStr = r.tanggal ? String(r.tanggal).substring(0, 10) : toDateStr(new Date())
+      return {
+        id: r.no,
+        nama: r.nama,
+        nim: r.nim,
+        waktu: r.waktu,
+        tanggal: tanggalStr,
+        timestamp: new Date(tanggalStr + 'T00:00:00'),
+        gate: r.gate,
+        confidence: r.confidence,
+        status: r.status,
+      }
+    })
   } catch (e) {
     console.error('Gagal ambil log:', e)
     return []
@@ -236,7 +239,8 @@ function DashboardPage() {
           if (!data.faces?.length) return
 
           const isGranted = currentStatus === 'granted'
-          const cooldownKey = isGranted ? (data.user?.nim || 'UNKNOWN') : 'DENIED'
+          const faceNim = isGranted ? (data.user?.nim || 'UNKNOWN') : (data.faces?.[0]?.nim || 'UNKNOWN')
+          const cooldownKey = faceNim
           const now = Date.now()
           const lastTime = nimCooldownRef.current[cooldownKey] || 0
 
