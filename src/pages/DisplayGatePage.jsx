@@ -31,7 +31,7 @@ function DisplayGatePage() {
 
   // ========== WEBSOCKET CONNECTION ==========
   useEffect(() => {
-    const wsUrl = 'ws://localhost:8000/ws/detect'
+    const wsUrl = 'ws://100.89.141.47:8000/ws/detect'
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {

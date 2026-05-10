@@ -87,7 +87,7 @@ CHALLENGES      = ['BLINK', 'HEAD', 'SMILE']
 # ─────────────────────────────────────────────────────────────
 # HYBRID RECOGNITION CONFIG
 # ─────────────────────────────────────────────────────────────
-SERVER_URL   = "http://localhost:8001/identify-face"
+SERVER_URL   = "http://100.89.141.47:8001/identify-face"
 # SUPABASE_URL      = "https://kcskzlwxnvmvofyscqsr.supabase.co"
 # SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjc2t6bHd4bnZtdm9meXNjcXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzk0ODIsImV4cCI6MjA5Mjc1NTQ4Mn0.mpmImOcJWkBFwTynGUos7LmUnSYLqGe0h_KRbYQ3tuw"
 # SUPABASE_HEADERS  = {
@@ -114,7 +114,7 @@ last_granted_identity = None
 # ─────────────────────────────────────────────────────────────
 # SERVER BLOKIR LOGIC
 # ─────────────────────────────────────────────────────────────
-DB_SERVER_URL = "http://localhost:8001"
+DB_SERVER_URL = "http://100.89.141.47:8001"
 
 def refresh_blocked_nims():
     global blocked_nims, blocked_cache_time

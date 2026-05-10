@@ -5,7 +5,7 @@ import logo from '../assets/logo-telkom.png'
 // ═══════════════════════════════════════════════════════════════
 // KONFIGURASI SERVER
 // ═══════════════════════════════════════════════════════════════
-const SERVER_URL = 'http://localhost:8001'
+const SERVER_URL = 'http://100.89.141.47:8001'
 
 // ─── Simpan 1 log ke tabel log_akses ─────────────────────────
 const saveLog = async (entry) => {
@@ -219,7 +219,7 @@ function DashboardPage() {
   // ─── WebSocket: simpan realtime ke server ────────────────────
   useEffect(() => {
     const connect = () => {
-      const ws = new WebSocket('ws://localhost:8000/ws/detect')
+      const ws = new WebSocket('ws://100.89.141.47:8000/ws/detect')
       wsRef.current = ws
 
       ws.onopen = () => { setIsConnected(true); setWsStatus('Terhubung') }  
