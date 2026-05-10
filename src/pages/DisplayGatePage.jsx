@@ -190,8 +190,8 @@ function DisplayGatePage() {
   // Instruksi challenge yang ramah user
   const getChallengeInstruction = () => {
     switch (livenessChallenge) {
-      case 'BLINK': return '👁️ Kedipkan mata'
-      case 'HEAD': return '↔️ Gelengkan kepala'
+      case 'BLINK': return '👁️ Kedipkan Mata'
+      case 'HEAD': return '↔️ Gelengkan Kepala'
       case 'SMILE': return '😊 Senyum'
       default: return ''
     }
@@ -212,7 +212,7 @@ function DisplayGatePage() {
                 <h1 className="text-white font-bold text-lg tracking-tight">
                   Face Recognition Access Gate
                 </h1>
-                <p className="text-slate-400 text-xs">
+                <p className="text-slate-300 text-xs">
                   Telkom University — Sistem Autentikasi Biometrik
                 </p>
               </div>
@@ -221,12 +221,12 @@ function DisplayGatePage() {
               <div className="hidden md:flex items-center gap-2 bg-slate-800/50 px-4 py-2 rounded-full border border-slate-700">
                 <div className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
                 <span className="text-slate-300 text-xs font-mono">
-                  {isConnected ? `ONLINE · ${fps} FPS` : 'OFFLINE'}
+                  {/* {isConnected ? `ONLINE · ${fps} FPS` : 'OFFLINE'} */}
                 </span>
               </div>
               <div className="text-right">
                 <p className="text-slate-400 text-[10px] uppercase tracking-wider">Waktu Sistem</p>
-                <p className="text-white text-sm font-mono">{formatTimestamp()}</p>
+                <p className="text-white text-[15px] font-mono">{formatTimestamp()}</p>
               </div>
             </div>
           </div>
@@ -246,10 +246,10 @@ function DisplayGatePage() {
                   <p className="text-slate-300 text-sm font-medium">Live Feed — Gate 4</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="text-slate-500">Status:</span>
-                  <span className={`font-mono ${getStatusColor()}`}>
-                    {systemStatus.toUpperCase()}
-                  </span>
+                  {/* <span className="text-slate-500">Status:</span> */}
+                  {/* <span className={`font-mono ${getStatusColor()}`}> */}
+                    {/* {systemStatus.toUpperCase()} */}
+                  {/* </span> */}
                 </div>
               </div>
 
@@ -277,7 +277,8 @@ function DisplayGatePage() {
                 {/* Badge Liveness Challenge (hanya muncul saat ada challenge dan belum lulus) */}
                 {!livenessPassed && livenessChallenge && (
                   <div className="absolute bottom-4 left-4 bg-yellow-600/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-                    <span className="text-white text-sm font-bold">
+                    <span className="text-white text-[18px] font-bold"
+                     style={{WebkitTextStroke: '0.5px black'}}>
                       {getChallengeInstruction()}
                     </span>
                   </div>
@@ -336,7 +337,7 @@ function DisplayGatePage() {
             {/* Panel 1: Status Sistem (ditambah Liveness) */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 shadow-xl">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                <p className="text-slate-300 text-[18px] font-bold uppercase tracking-wider">
                   Status Sistem
                 </p>
                 <div className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold ${statusBadge.bg} ${statusBadge.border} ${getStatusColor()}`}>
@@ -348,7 +349,7 @@ function DisplayGatePage() {
                   {statusBadge.icon}
                 </div>
                 <div>
-                  <p className="text-slate-400 text-xs">Deteksi Terakhir</p>
+                  <p className="text-slate-300 text-sm">-</p>
                   {currentDetection ? (
                     <>
                       <p className="text-white font-semibold text-lg">{currentDetection.nama}</p>
@@ -356,44 +357,52 @@ function DisplayGatePage() {
                       <p className="text-slate-500 text-xs mt-1">{currentDetection.waktu}</p>
                     </>
                   ) : (
-                    <p className="text-slate-500 text-sm">Belum ada deteksi</p>
+                    <p className="text-slate-300 text-sm">Belum ada deteksi</p>
                   )}
                 </div>
               </div>
 
               {/* Liveness Info */}
               <div className="mt-4 pt-3 border-t border-slate-700/50">
-                <div className="flex items-center justify-between">
-                  <p className="text-slate-400 text-[10px] uppercase tracking-wider">Liveness Check</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-slate-300 text-sm font-bold uppercase tracking-wider">Liveness Check</p>
                   {!livenessPassed && livenessChallenge && (
-                    <span className="text-yellow-400 text-[9px] font-mono animate-pulse">WAITING</span>
+                    <span className="text-yellow-400 text-xs font-mono animate-pulse">WAITING</span>
                   )}
                 </div>
                 {!livenessPassed ? (
                   <div className="mt-1">
-                    <p className="text-yellow-400 text-xs font-mono flex items-center gap-1">
+                    <p className="text-yellow-400 text-sm font-semibold flex items-center gap-1">
                       <span>⚠️</span> Challenge: {livenessChallenge || '—'}
                     </p>
-                    <p className="text-slate-500 text-[9px] mt-1">Lakukan gerakan untuk membuka akses</p>
+                    <p className="text-slate-400 text-[13.5px] mt-1">Lakukan gerakan untuk membuka akses</p>
                   </div>
                 ) : (
-                  <p className="text-green-400 text-xs font-mono flex items-center gap-1 mt-1">
+                  <p className="text-green-400 text-sm font-semibold flex items-center gap-1 mt-1">
                     ✓ Liveness verified
                   </p>
                 )}
-                {/* Opsional: tampilkan nilai sensor (untuk debug, bisa dihapus) */}
-                <div className="grid grid-cols-3 gap-2 mt-2 text-[9px] text-slate-500">
-                  <div className="flex flex-col items-center bg-slate-900/30 rounded p-1">
-                    <span>👁️ Blink</span>
-                    <span className="font-mono">{livenessEar.toFixed(2)}</span>
+                <div className="grid grid-cols-3 gap-2 mt-3 text-[15px] text-white">
+                  <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
+                    <span>👁️</span>
+                    <div className="flex flex-col">
+                      <span>Blink</span>
+                      <span className="font-mono text-slate-400 text-lg">{livenessEar.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center bg-slate-900/30 rounded p-1">
-                    <span>🔄 Head</span>
-                    <span className="font-mono">{livenessYaw.toFixed(2)}</span>
+                  <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
+                    <span>🔄</span>
+                    <div className="flex flex-col">
+                      <span>Head</span>
+                      <span className="font-mono text-slate-400 text-sm">{livenessYaw.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center bg-slate-900/30 rounded p-1">
-                    <span>😊 Smile</span>
-                    <span className="font-mono">{livenessSmile.toFixed(2)}</span>
+                  <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
+                    <span>😊</span>
+                    <div className="flex flex-col">
+                      <span>Smile</span>
+                      <span className="font-mono text-slate-400 text-sm">{livenessSmile.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -401,21 +410,21 @@ function DisplayGatePage() {
 
             {/* Panel 2: Statistik (tidak berubah) */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 shadow-xl">
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-4">
+              <p className="text-slate-300 text-sm font-bold uppercase tracking-wider mb-4">
                 Statistik Hari Ini
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 bg-slate-900/50 rounded-xl">
                   <p className="text-2xl font-bold text-green-400">{stats.granted}</p>
-                  <p className="text-slate-500 text-[10px] font-medium mt-1">GRANTED</p>
+                  <p className="text-slate-300 text-[12px] font-medium mt-1">GRANTED</p>
                 </div>
                 <div className="text-center p-3 bg-slate-900/50 rounded-xl">
                   <p className="text-2xl font-bold text-red-400">{stats.denied}</p>
-                  <p className="text-slate-500 text-[10px] font-medium mt-1">DENIED</p>
+                  <p className="text-slate-300 text-[12px] font-medium mt-1">DENIED</p>
                 </div>
                 <div className="text-center p-3 bg-slate-900/50 rounded-xl">
                   <p className="text-2xl font-bold text-blue-400">{stats.total}</p>
-                  <p className="text-slate-500 text-[10px] font-medium mt-1">TOTAL</p>
+                  <p className="text-slate-300 text-[12px] font-medium mt-1">TOTAL</p>
                 </div>
               </div>
             </div>
@@ -423,15 +432,15 @@ function DisplayGatePage() {
             {/* Panel 3: Activity Log (tidak berubah) */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-700">
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                <p className="text-slate-300 text-sm font-bold uppercase tracking-wider">
                   Aktivitas Terbaru
                 </p>
               </div>
               <div className="max-h-64 overflow-y-auto">
                 {recentLogs.length === 0 ? (
                   <div className="p-8 text-center">
-                    <p className="text-slate-600 text-sm">Belum ada aktivitas</p>
-                    <p className="text-slate-700 text-xs mt-1">Sistem menunggu deteksi wajah</p>
+                    <p className="text-slate-400 text-sm">Belum ada aktivitas</p>
+                    <p className="text-slate-500 text-xs mt-1">Sistem menunggu deteksi wajah</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-700/50">
@@ -463,23 +472,7 @@ function DisplayGatePage() {
               </div>
             </div>
 
-            {/* Panel 4: Informasi Sistem (tidak berubah) */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-4 shadow-xl">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                  <span className="text-slate-500">WebSocket</span>
-                </div>
-                <span className={`font-mono ${isConnected ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {isConnected ? 'TERHUBUNG' : 'TERPUTUS'}
-                </span>
-              </div>
-              <div className="mt-3 pt-3 border-t border-slate-700/50">
-                <p className="text-slate-600 text-[9px] text-center">
-                  Face Recognition Gate System v2.0 — Anti Spoof
-                </p>
-              </div>
-            </div>
+
 
           </div>
         </div>

@@ -95,6 +95,18 @@ const unblockUser = async (nim) => {
   }
 }
 
+const deleteUser = async (nim) => {
+  try {
+    const res = await fetch(`${SERVER_URL}/users/${encodeURIComponent(nim)}`, {
+      method: 'DELETE',
+    })
+    return res.ok
+  } catch (e) {
+    console.error('Gagal hapus:', e)
+    return false
+  }
+}
+
 // ─── Utilitas Tanggal ─────────────────────────────────────────
 const toDateStr = (date) => {
   const year = date.getFullYear();
@@ -335,6 +347,16 @@ const handleUnblock = async (user) => {
         u.nim === user.nim ? { ...u, is_blocked: false } : u
       )
     )
+  }
+  setBlokirAction(null)
+}
+
+const handleDelete = async (user) => {
+  if (!window.confirm(`Yakin ingin menghapus permanen user ${user.nama} (${user.nim})? Data tidak dapat dikembalikan.`)) return
+  setBlokirAction(user.nim)
+  const ok = await deleteUser(user.nim)
+  if (ok) {
+    setRegisteredUsers((prev) => prev.filter((u) => u.nim !== user.nim))
   }
   setBlokirAction(null)
 }
@@ -638,25 +660,34 @@ const handleUnblock = async (user) => {
                                 <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">AKTIF</span>
                               )}
                             </td>
-                            <td className="px-5 py-3.5">
+                           <td className="px-5 py-3.5">
+                            <div className="flex gap-2">
                               {user.is_blocked ? (
                                 <button
                                   onClick={() => handleUnblock(user)}
-                                  disabled={isProcessing}
+                                  disabled={blokirAction === user.nim}
                                   className="flex items-center gap-1.5 text-xs bg-green-900/60 hover:bg-green-800 text-green-400 hover:text-white px-3 py-1.5 rounded-lg border border-green-500/40 transition-all disabled:opacity-50"
                                 >
-                                  {isProcessing ? <span className="w-3 h-3 border border-green-400/30 border-t-green-400 rounded-full animate-spin" /> : '🔓'} Unblock
+                                  {blokirAction === user.nim ? <span className="w-3 h-3 border border-green-400/30 border-t-green-400 rounded-full animate-spin" /> : '🔓'} Unblock
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => handleBlokir(user)}
-                                  disabled={isProcessing}
+                                  disabled={blokirAction === user.nim}
                                   className="flex items-center gap-1.5 text-xs bg-red-900/60 hover:bg-red-800 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/40 transition-all disabled:opacity-50"
                                 >
-                                  {isProcessing ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : '🚫'} Blokir
+                                  {blokirAction === user.nim ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : '🚫'} Blokir
                                 </button>
                               )}
-                            </td>
+                              <button
+                                onClick={() => handleDelete(user)}
+                                disabled={blokirAction === user.nim}
+                                className="flex items-center gap-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-gray-500/40 transition-all disabled:opacity-50"
+                              >
+                                {blokirAction === user.nim ? <span className="w-3 h-3 border border-gray-400/30 border-t-gray-400 rounded-full animate-spin" /> : '🗑️'} Hapus
+                              </button>
+                            </div>
+                          </td>
                           </tr>
                         )
                       })}
