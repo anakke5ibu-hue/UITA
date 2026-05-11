@@ -159,7 +159,7 @@ function RegistrasiPage() {
     const files = Array.from(e.target.files)
     if (files.length === 0) return
 
-    if (files.length < 5) {
+    if (files.length < 2) {
       setStatus({ type: 'error', msg: 'Upload minimal 5 foto untuk hasil embedding yang baik.' })
       return
     }
