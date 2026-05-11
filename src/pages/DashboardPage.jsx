@@ -362,11 +362,16 @@ const handleDelete = async (user) => {
 }
 
   // ─── Filter Blokir User ──────────────────────────────────────
-  const filteredBlokirUsers = registeredUsers.filter((u) => {
-    if (!blokirSearchQuery) return true
-    const q = blokirSearchQuery.toLowerCase()
-    return u.nama.toLowerCase().includes(q) || u.nim.toLowerCase().includes(q)
-  })
+  const naturalSort = (str1, str2) => {
+    return str1.localeCompare(str2, undefined, { numeric: true, sensitivity: 'base' })
+  }
+  const filteredBlokirUsers = registeredUsers
+    .filter((u) => {
+      if (!blokirSearchQuery) return true
+      const q = blokirSearchQuery.toLowerCase()
+      return u.nama.toLowerCase().includes(q) || u.nim.toLowerCase().includes(q)
+    })
+    .sort((a, b) => naturalSort(a.nama, b.nama))
 
   // ─── RENDER ──────────────────────────────────────────────────
   return (
