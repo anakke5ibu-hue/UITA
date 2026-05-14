@@ -11,6 +11,7 @@ function DisplayGatePage() {
   const [recentLogs, setRecentLogs] = useState([])
   const [systemStatus, setSystemStatus] = useState('menunggu')
   const [fps, setFps] = useState(0)
+  const [antispofEnabled, setAntispofEnabled] = useState(true)
 
   // Liveness state
   const [livenessPassed, setLivenessPassed] = useState(false)
@@ -24,20 +25,31 @@ function DisplayGatePage() {
   const lastFpsUpdateRef = useRef(Date.now())
   const overlayTimeoutRef = useRef(null)
   const statusPrevRef = useRef(null)
+  const wsRef = useRef(null)
 
-  // Cooldown per NIM - sinkron dengan Dashboard & backend: 10 detik
+  // Cooldown per NIM
   const nimCooldownRef = useRef({})
   const COOLDOWN_MS = 10000
 
+  // ========== FUNGSI KIRIM STATUS ANTISPOOF ==========
+  const sendAntispofStatus = (status) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ antispof: status }))
+      console.log('📤 Anti-spoof status sent:', status)
+    }
+  }
+
   // ========== WEBSOCKET CONNECTION ==========
   useEffect(() => {
-    const wsUrl = 'ws://100.89.141.47:8000/ws/detect'
+    const wsUrl = 'ws://localhost:8000/ws/detect'
     const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
 
     ws.onopen = () => {
       console.log('✅ WebSocket Connected')
       setIsConnected(true)
       setSystemStatus('terhubung')
+      sendAntispofStatus(antispofEnabled)
     }
 
     ws.onclose = () => {
@@ -65,7 +77,7 @@ function DisplayGatePage() {
           lastFpsUpdateRef.current = now
         }
 
-        // ========== AMBIL DATA LIVENESS ==========
+        // Liveness data
         if (data.liveness) {
           setLivenessPassed(data.liveness.passed || false)
           setLivenessChallenge(data.liveness.challenge || '')
@@ -74,10 +86,9 @@ function DisplayGatePage() {
           setLivenessSmile(data.liveness.smile || 0)
         }
 
-        const currentStatus = data.status // 'idle', 'scanning', 'granted', 'denied'
+        const currentStatus = data.status
         const prevStatus = statusPrevRef.current
 
-        // Hanya proses jika status berubah
         if (currentStatus !== prevStatus) {
           statusPrevRef.current = currentStatus
 
@@ -117,7 +128,7 @@ function DisplayGatePage() {
           }
         }
 
-        // Update logs & stats — cooldown 10 detik per NIM
+        // Logs & stats
         if (data.faces && data.faces.length > 0) {
           if (currentStatus === 'granted' || currentStatus === 'denied') {
             const isGranted = currentStatus === 'granted'
@@ -158,6 +169,11 @@ function DisplayGatePage() {
     }
   }, [])
 
+  // Kirim status anti-spoof setiap kali berubah
+  useEffect(() => {
+    sendAntispofStatus(antispofEnabled)
+  }, [antispofEnabled])
+
   // ========== HELPER FUNCTIONS ==========
   const formatTimestamp = () => new Date().toLocaleTimeString('id-ID', {
     hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -187,7 +203,6 @@ function DisplayGatePage() {
 
   const statusBadge = getStatusBadge()
 
-  // Instruksi challenge yang ramah user
   const getChallengeInstruction = () => {
     switch (livenessChallenge) {
       case 'BLINK': return '👁️ Kedipkan Mata'
@@ -246,10 +261,7 @@ function DisplayGatePage() {
                   <p className="text-slate-300 text-sm font-medium">Live Feed — Gate 4</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
-                  {/* <span className="text-slate-500">Status:</span> */}
-                  {/* <span className={`font-mono ${getStatusColor()}`}> */}
-                    {/* {systemStatus.toUpperCase()} */}
-                  {/* </span> */}
+                  {/* status text dihilangkan sesuai permintaan */}
                 </div>
               </div>
 
@@ -273,12 +285,11 @@ function DisplayGatePage() {
                   <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                   <span className="text-white text-xs font-bold tracking-widest">LIVE</span>
                 </div>
-
-                {/* Badge Liveness Challenge (hanya muncul saat ada challenge dan belum lulus) */}
-                {!livenessPassed && livenessChallenge && (
+                
+                {/* Badge Liveness Challenge (hanya muncul saat anti-spoof ON dan challenge belum lulus) */}
+                {antispofEnabled && !livenessPassed && livenessChallenge && (
                   <div className="absolute bottom-4 left-4 bg-yellow-600/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-                    <span className="text-white text-[18px] font-bold"
-                     style={{WebkitTextStroke: '0.5px black'}}>
+                    <span className="text-white text-[18px] font-bold" style={{WebkitTextStroke: '0.5px black'}}>
                       {getChallengeInstruction()}
                     </span>
                   </div>
@@ -334,7 +345,7 @@ function DisplayGatePage() {
           {/* RIGHT COLUMN: INFO PANELS */}
           <div className="space-y-5">
 
-            {/* Panel 1: Status Sistem (ditambah Liveness) */}
+            {/* Panel 1: Status Sistem & Liveness (dengan toggle anti-spoof) */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 shadow-xl">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-slate-300 text-[18px] font-bold uppercase tracking-wider">
@@ -362,53 +373,72 @@ function DisplayGatePage() {
                 </div>
               </div>
 
-              {/* Liveness Info */}
+              {/* ========== LIVENESS SECTION DENGAN TOGGLE DI DALAMNYA ========== */}
               <div className="mt-4 pt-3 border-t border-slate-700/50">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-slate-300 text-sm font-bold uppercase tracking-wider">Liveness Check</p>
-                  {!livenessPassed && livenessChallenge && (
-                    <span className="text-yellow-400 text-xs font-mono animate-pulse">WAITING</span>
-                  )}
+                  {/* Toggle Anti-Spoof dipindah ke sini */}
+                  <div className="flex items-center gap-2 bg-slate-700/50 px-2 py-1 rounded-full">
+                    <span className="text-slate-300 text-[10px] font-mono">Anti-Spoof</span>
+                    <button
+                      onClick={() => setAntispofEnabled(!antispofEnabled)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${antispofEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${antispofEnabled ? 'translate-x-5' : 'translate-x-1'}`}
+                      />
+                    </button>
+                  </div>
                 </div>
-                {!livenessPassed ? (
-                  <div className="mt-1">
-                    <p className="text-yellow-400 text-sm font-semibold flex items-center gap-1">
-                      <span>⚠️</span> Challenge: {livenessChallenge || '—'}
-                    </p>
-                    <p className="text-slate-400 text-[13.5px] mt-1">Lakukan gerakan untuk membuka akses</p>
+
+                {!antispofEnabled ? (
+                  <div className="mt-2 p-2 bg-slate-900/50 rounded-lg text-center">
+                    <p className="text-slate-400 text-sm">⚙️ Anti-spoof dimatikan</p>
+                    <p className="text-slate-500 text-xs mt-1">Akses langsung berdasarkan pengenalan wajah</p>
                   </div>
                 ) : (
-                  <p className="text-green-400 text-sm font-semibold flex items-center gap-1 mt-1">
-                    ✓ Liveness verified
-                  </p>
+                  <>
+                    {!livenessPassed ? (
+                      <div className="mt-1">
+                        <p className="text-yellow-400 text-sm font-semibold flex items-center gap-1">
+                          <span>⚠️</span> Challenge: {livenessChallenge || '—'}
+                        </p>
+                        <p className="text-slate-400 text-[13.5px] mt-1">Lakukan gerakan untuk membuka akses</p>
+                      </div>
+                    ) : (
+                      <p className="text-green-400 text-sm font-semibold flex items-center gap-1 mt-1">
+                        ✓ Liveness verified
+                      </p>
+                    )}
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-[15px] text-white">
+                      <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
+                        <span>👁️</span>
+                        <div className="flex flex-col">
+                          <span>Blink</span>
+                          <span className="font-mono text-slate-400 text-lg">{livenessEar.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
+                        <span>🔄</span>
+                        <div className="flex flex-col">
+                          <span>Head</span>
+                          <span className="font-mono text-slate-400 text-sm">{livenessYaw.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
+                        <span>😊</span>
+                        <div className="flex flex-col">
+                          <span>Smile</span>
+                          <span className="font-mono text-slate-400 text-sm">{livenessSmile.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
-                <div className="grid grid-cols-3 gap-2 mt-3 text-[15px] text-white">
-                  <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
-                    <span>👁️</span>
-                    <div className="flex flex-col">
-                      <span>Blink</span>
-                      <span className="font-mono text-slate-400 text-lg">{livenessEar.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
-                    <span>🔄</span>
-                    <div className="flex flex-col">
-                      <span>Head</span>
-                      <span className="font-mono text-slate-400 text-sm">{livenessYaw.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center bg-slate-900/50 rounded-lg px-2 py-1.5 gap-2">
-                    <span>😊</span>
-                    <div className="flex flex-col">
-                      <span>Smile</span>
-                      <span className="font-mono text-slate-400 text-sm">{livenessSmile.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
-            {/* Panel 2: Statistik (tidak berubah) */}
+            {/* Panel 2: Statistik */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 shadow-xl">
               <p className="text-slate-300 text-sm font-bold uppercase tracking-wider mb-4">
                 Statistik Hari Ini
@@ -429,7 +459,7 @@ function DisplayGatePage() {
               </div>
             </div>
 
-            {/* Panel 3: Activity Log (tidak berubah) */}
+            {/* Panel 3: Activity Log */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-700">
                 <p className="text-slate-300 text-sm font-bold uppercase tracking-wider">
@@ -471,8 +501,6 @@ function DisplayGatePage() {
                 )}
               </div>
             </div>
-
-
 
           </div>
         </div>

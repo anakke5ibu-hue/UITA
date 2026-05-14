@@ -231,7 +231,7 @@ function DashboardPage() {
   // ─── WebSocket: simpan realtime ke server ────────────────────
   useEffect(() => {
     const connect = () => {
-      const ws = new WebSocket('ws://100.89.141.47:8000/ws/detect')
+      const ws = new WebSocket('ws://localhost:8000/ws/detect')
       wsRef.current = ws
 
       ws.onopen = () => { setIsConnected(true); setWsStatus('Terhubung') }  
