@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import logo from '../assets/logo-telkom.png'
 
+const RECOGNITION_THRESHOLD = 0.75
+
 function DisplayGatePage() {
   // ========== STATE MANAGEMENT ==========
   const [frame, setFrame] = useState(null)
@@ -19,6 +21,9 @@ function DisplayGatePage() {
   const [livenessEar, setLivenessEar] = useState(0)
   const [livenessYaw, setLivenessYaw] = useState(0)
   const [livenessSmile, setLivenessSmile] = useState(0)
+
+  // Realtime confidence
+  const [realtimeConfidence, setRealtimeConfidence] = useState(null)
 
   // Refs
   const frameCountRef = useRef(0)
@@ -84,6 +89,13 @@ function DisplayGatePage() {
           setLivenessEar(data.liveness.ear || 0)
           setLivenessYaw(data.liveness.yaw || 0)
           setLivenessSmile(data.liveness.smile || 0)
+        }
+
+        // Realtime confidence — hanya update saat liveness passed
+        if (data.liveness?.passed && data.faces && data.faces.length > 0) {
+          setRealtimeConfidence(data.faces[0].confidence ?? null)
+        } else if (!data.liveness?.passed) {
+          setRealtimeConfidence(null)
         }
 
         const currentStatus = data.status
@@ -197,6 +209,7 @@ function DisplayGatePage() {
       case 'terhubung': return { bg: 'bg-emerald-500/20', border: 'border-emerald-500/50', text: 'SISTEM SIAP', icon: '●' }
       case 'putus': return { bg: 'bg-red-500/20', border: 'border-red-500/50', text: 'KONEKSI PUTUS', icon: '⚠' }
       case 'error': return { bg: 'bg-amber-500/20', border: 'border-amber-500/50', text: 'ERROR SISTEM', icon: '!' }
+      case 'scanning': return { bg: 'bg-blue-500/20', border: 'border-blue-500/50', text: 'MEMINDAI...', icon: '🔍' }
       default: return { bg: 'bg-slate-500/20', border: 'border-slate-500/50', text: 'MENUNGGU DETEKSI', icon: '○' }
     }
   }
@@ -210,6 +223,38 @@ function DisplayGatePage() {
       case 'SMILE': return '😊 Senyum'
       default: return ''
     }
+  }
+
+  // Confidence bar helper
+  const getConfidenceBar = (confidence) => {
+    const pct = Math.min((confidence / RECOGNITION_THRESHOLD) * 100, 100)
+    let color
+    if (pct < 60) {
+      color = {
+        bar: 'bg-red-500',
+        glow: 'shadow-red-500/50',
+        text: 'text-red-400',
+        label: 'bg-red-500/20 border-red-500/30',
+        track: 'bg-red-500/10'
+      }
+    } else if (pct < 90) {
+      color = {
+        bar: 'bg-yellow-400',
+        glow: 'shadow-yellow-400/50',
+        text: 'text-yellow-400',
+        label: 'bg-yellow-500/20 border-yellow-500/30',
+        track: 'bg-yellow-500/10'
+      }
+    } else {
+      color = {
+        bar: 'bg-green-500',
+        glow: 'shadow-green-500/50',
+        text: 'text-green-400',
+        label: 'bg-green-500/20 border-green-500/30',
+        track: 'bg-green-500/10'
+      }
+    }
+    return { pct, color }
   }
 
   // ========== RENDER ==========
@@ -236,7 +281,7 @@ function DisplayGatePage() {
               <div className="hidden md:flex items-center gap-2 bg-slate-800/50 px-4 py-2 rounded-full border border-slate-700">
                 <div className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
                 <span className="text-slate-300 text-xs font-mono">
-                  {/* {isConnected ? `ONLINE · ${fps} FPS` : 'OFFLINE'} */}
+                  {isConnected ? `ONLINE · ${fps} FPS` : 'OFFLINE'}
                 </span>
               </div>
               <div className="text-right">
@@ -285,11 +330,11 @@ function DisplayGatePage() {
                   <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                   <span className="text-white text-xs font-bold tracking-widest">LIVE</span>
                 </div>
-                
+
                 {/* Badge Liveness Challenge (hanya muncul saat anti-spoof ON dan challenge belum lulus) */}
                 {antispofEnabled && !livenessPassed && livenessChallenge && (
                   <div className="absolute bottom-4 left-4 bg-yellow-600/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-                    <span className="text-white text-[18px] font-bold" style={{WebkitTextStroke: '0.5px black'}}>
+                    <span className="text-white text-[18px] font-bold" style={{ WebkitTextStroke: '0.5px black' }}>
                       {getChallengeInstruction()}
                     </span>
                   </div>
@@ -377,7 +422,7 @@ function DisplayGatePage() {
               <div className="mt-4 pt-3 border-t border-slate-700/50">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-slate-300 text-sm font-bold uppercase tracking-wider">Liveness Check</p>
-                  {/* Toggle Anti-Spoof dipindah ke sini */}
+                  {/* Toggle Anti-Spoof */}
                   <div className="flex items-center gap-2 bg-slate-700/50 px-2 py-1 rounded-full">
                     <span className="text-slate-300 text-[10px] font-mono">Anti-Spoof</span>
                     <button
@@ -401,7 +446,7 @@ function DisplayGatePage() {
                     {!livenessPassed ? (
                       <div className="mt-1">
                         <p className="text-yellow-400 text-sm font-semibold flex items-center gap-1">
-                          <span>⚠️</span> Challenge: {livenessChallenge || '—'}
+                          <span>⚠️</span> Challenge: {getChallengeInstruction() || livenessChallenge || '—'}
                         </p>
                         <p className="text-slate-400 text-[13.5px] mt-1">Lakukan gerakan untuk membuka akses</p>
                       </div>
@@ -436,6 +481,42 @@ function DisplayGatePage() {
                   </>
                 )}
               </div>
+
+              {/* ========== CONFIDENCE BAR ========== */}
+              {livenessPassed && realtimeConfidence !== null && (() => {
+                const { pct, color } = getConfidenceBar(realtimeConfidence)
+                return (
+                  <div className="mt-4 pt-3 border-t border-slate-700/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-300 text-sm font-bold uppercase tracking-wider">
+                        Kemiripan Wajah
+                      </p>
+                      <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border ${color.label} ${color.text}`}>
+                        {pct.toFixed(1)}%
+                      </span>
+                    </div>
+                    {/* Track */}
+                    <div className={`w-full rounded-full h-3 overflow-hidden ${color.track} border border-slate-700`}>
+                      <div
+                        className={`h-3 rounded-full transition-all duration-300 ${color.bar}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    {/* Labels bawah */}
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-slate-600 text-[10px] font-mono">0%</span>
+                      <span className="text-slate-500 text-[10px] font-mono">
+                        Threshold ({(RECOGNITION_THRESHOLD * 100).toFixed(0)}% = 100%)
+                      </span>
+                    </div>
+                    {/* Raw score */}
+                    <p className="text-slate-600 text-[50px] font-mono mt-1 text-right">
+                      score: {realtimeConfidence.toFixed(4)}
+                    </p>
+                  </div>
+                )
+              })()}
+
             </div>
 
             {/* Panel 2: Statistik */}

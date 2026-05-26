@@ -1,0 +1,14 @@
+# Web Server & Real-time Communication
+fastapi>=0.100.0
+uvicorn>=0.22.0
+websockets>=11.0
+requests>=2.31.0
+
+# Computer Vision & Deep Learning Frameworks
+opencv-python>=4.8.0
+numpy>=1.24.0
+torch>=2.0.0
+openvino>=2023.0
+ultralytics>=8.1.0
+mediapipe>=0.10.0
+deepface>=0.0.75

@@ -25,7 +25,7 @@ dist-ssr
 
 # Virtual Environment
 recog/venv_UI/
-venv/
+recog/.venv/
 ENV/
 
 
@@ -40,8 +40,12 @@ recog/models/
 
 venv_UI/
 recog/venv_recog/
+recog/.venv/
+recog/venv/
+recog/hasil_deteksi/
 node_modules/
 dist/
 *.bin
 *.dll
 *.pyd
+
