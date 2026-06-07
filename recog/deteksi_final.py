@@ -49,26 +49,26 @@ CONFIG = {
     
     # ========== THRESHOLD ==========
     "yolo_threshold":           0.5,
-    "recognition_threshold":    0.7,
+    "recognition_threshold":    0.65,
     
     # ========== KAMERA ==========
     "camera_index":             0,
-    "camera_width":             1280,
-    "camera_height":            720,
+    "camera_width":             640, # 1280 HD, 640 SD 
+    "camera_height":            360,  # 720 HD 360 SD
     "max_fps":                  15,
     
     # ========== MOTION & ROI ==========
     "motion_threshold":         2000,
-    "detection_freeze_frames":  30,
+    "detection_freeze_frames":  15,
     "frame_skip_interval":      6,
     "roi_enabled":              True,
     "roi_center_ratio":         0.35,
     "roi_expansion_frames":     30,
     
     # ========== DEEPFACE (Anti-Spoof) ==========
-    "deepface_enabled":         True,        # 🔥 ON/OFF DeepFace
+    "deepface_enabled":         True               ,        # 🔥 ON/OFF DeepFace
     "deepface_throttle_frames": 60,          # Setiap N frame
-    "deepface_spoof_threshold": 0.90,        # Score >= ini = SPOOF
+    "deepface_spoof_threshold": 0.5,        # Score >= ini = SPOOF
     
     # ========== MEDIAPIPE LIVENESS ==========
     "liveness_enabled":         True,        # 🔥 ON/OFF Liveness Challenge
@@ -234,7 +234,7 @@ def square_crop_face_identical(img: np.ndarray, box: list, padding_ratio=None, t
     x1_p = max(0, cx - half)
     y1_p = max(0, cy - half)
     x2_p = min(w_orig, cx + half)
-    y2_p = min(h_orig, cy + half)
+    y2_p = min(h_orig, cy + half)       
     
     face = img[y1_p:y2_p, x1_p:x2_p]
     if face.size == 0:
@@ -364,7 +364,7 @@ def calculate_roi_bounds(frame_h, frame_w, roi_ratio=0.35):
     roi_x = (frame_w - roi_w) // 2
     return roi_h, roi_w, roi_y, roi_x
 
-def boxes_overlap(box1, box2, iou_threshold=0.3):
+def boxes_overlap(box1, box2, iou_threshold=0.2):
     x1_1, y1_1, x2_1, y2_1 = box1
     x1_2, y1_2, x2_2, y2_2 = box2
     x1_i = max(x1_1, x1_2); y1_i = max(y1_1, y1_2)
@@ -382,7 +382,7 @@ def map_detections_from_roi(detections, roi_bounds):
         det['box'] = (x1 + roi_x, y1 + roi_y, x2 + roi_x, y2 + roi_y)
     return detections
 
-def match_face_detections(new_boxes, prev_detections, iou_threshold=0.3):
+def match_face_detections(new_boxes, prev_detections, iou_threshold=0.2):
     matches = {i: None for i in range(len(new_boxes))}
     if not prev_detections:
         return matches
@@ -563,10 +563,25 @@ def detect_and_recognize(frame, yolo_model, rec_model, face_database, cfg,
 
     for result in results:
         boxes = result.boxes.xyxy.cpu().numpy()
+        
+        # ========== FILTER: HANYA BOX TERBESAR ==========
+        if len(boxes) > 1:
+            # Hitung luas semua box
+            areas = []
+            for bbox in boxes:
+                x1, y1, x2, y2 = bbox
+                area = (x2 - x1) * (y2 - y1)
+                areas.append(area)
+            # Cari index box dengan luas terbesar
+            largest_idx = np.argmax(areas)
+            # Hanya simpan box terbesar
+            boxes = [boxes[largest_idx]]
+        # ========== END FILTER ==========
+        
         for i, bbox in enumerate(boxes):
             x1, y1, x2, y2 = map(int, bbox)
             new_boxes.append((x1, y1, x2, y2))
-        matches = match_face_detections(new_boxes, prev_detections or [], iou_threshold=0.3)
+        matches = match_face_detections(new_boxes, prev_detections or [], iou_threshold=0.2)
         for i, bbox in enumerate(boxes):
             x1, y1, x2, y2 = map(int, bbox)
             matched_prev = matches[i]
@@ -721,6 +736,7 @@ def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database
     smile_threshold = cfg.get("smile_threshold", 0.60)
     yaw_thresh = cfg.get("yaw_threshold", 0.15)
     liveness_enabled = cfg.get("liveness_enabled", True)
+    deepface_enabled = cfg.get("deepface_enabled", True)
     
     while not stop_event.is_set():
         try:
@@ -784,13 +800,32 @@ def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database
             liveness_state['challenge'] = random.choice(CONFIG.get("liveness_challenges", ['BLINK', 'HEAD', 'SMILE']))
             with _align_lock:
                 _align_cache.clear()
+            
+            # ========== RESET STATE SAAT WAJAH HILANG ==========
+            status = 'idle'
+            user_data = None
+            faces_data = []
+            frozen_detections = {'detections': [], 'freeze_count': 0}
+            deepface_cache = (True, 1.0)
+            deepface_frame_count = 0
+            # ========== END RESET ==========
         
-        # ── DEEPFACE ANTI-SPOOF ───────────────────────────────────
+        # ── DEEPFACE ANTI-SPOOF (MODIFIED: Bisa jalan tanpa liveness) ──
         status = 'idle'
         user_data = None
         faces_data = []
         
-        if liveness_state['passed'] and tracked:
+        # Logika: DeepFace jalan jika:
+        # - deepface_enabled = True DAN ada tracked wajah
+        # - DAN (liveness_enabled = False ATAU liveness_state['passed'] = True)
+        run_deepface = False
+        if deepface_enabled and tracked:
+            if liveness_enabled:
+                run_deepface = liveness_state['passed']
+            else:
+                run_deepface = True
+        
+        if run_deepface:
             deepface_frame_count += 1
             should_run_deepface = (deepface_frame_count % deepface_throttle) == 0
             
@@ -815,6 +850,8 @@ def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database
                         liveness_state['passed'] = False
                         liveness_state['challenge'] = random.choice(CONFIG.get("liveness_challenges", ['BLINK', 'HEAD', 'SMILE']))
                         tracked = []
+                        # Reset deepface cache juga
+                        deepface_cache = (True, 1.0)
                     else:
                         if should_run_deepface and CONFIG.get("debug_print_logs", True):
                             print(f"✅ DeepFace: Wajah Asli Terverifikasi! Score: {spoof_score}")
@@ -829,7 +866,7 @@ def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database
                 'nim': det.get("nim", "-"),
                 'is_recognized': det["is_recognized"],
             })
-            if user_data is None and liveness_state['passed']:
+            if user_data is None and (not liveness_enabled or liveness_state['passed']):
                 status = 'scanning'
                 now = time.time()
                 if det["is_recognized"]:
@@ -859,6 +896,7 @@ def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database
             _det_state['faces_data'] = faces_data
             _det_state['motion'] = float(motion)
 
+
 def frame_stream_thread(stream_q, stop_event, cfg):
     global camera_result
     interval = 1.0 / cfg['max_fps']
@@ -878,22 +916,8 @@ def frame_stream_thread(stream_q, stop_event, cfg):
             faces_data = list(_det_state['faces_data'])
             motion = _det_state['motion']
         draw = frame.copy()
-        h, w = frame.shape[:2]
-        cv2.rectangle(draw, (0, 0), (w, 50), (30, 30, 30), -1)
-        if liveness.get('passed', False):
-            cv2.putText(draw, "LIVENESS OK! PROCESSING...", (20, 35),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        else:
-            challenge = liveness.get('challenge', 'BLINK')
-            if challenge == 'BLINK':
-                inst = "Kedipkan Mata [BLINK Challenge]"
-            elif challenge == 'HEAD':
-                inst = "Gelengkan Kepala [HEAD TURN Challenge]"
-            elif challenge == 'SMILE':
-                inst = "Tersenyum [SMILE Challenge]"
-            else:
-                inst = f"CHALLENGE: {challenge}"
-            cv2.putText(draw, inst, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        
+        # Gambar bounding box wajah saja (tanpa teks apapun)
         for det in tracked:
             x1, y1, x2, y2 = det['box']
             if liveness.get('passed', False):
@@ -901,6 +925,7 @@ def frame_stream_thread(stream_q, stop_event, cfg):
                 cv2.rectangle(draw, (x1, y1), (x2, y2), color, 3)
             else:
                 cv2.rectangle(draw, (x1, y1), (x2, y2), (0, 165, 255), 2)
+        
         _, buf = cv2.imencode('.jpg', draw, [cv2.IMWRITE_JPEG_QUALITY, 60])
         b64 = base64.b64encode(buf).decode()
         with camera_lock:
@@ -930,8 +955,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 _stop = threading.Event()
 
 # Server backend URL
-SERVER_URL = "http://localhost:8001/identify-face"
-DB_SERVER_URL = "http://localhost:8001"
+SERVER_URL = "http://100.89.141.47:8001/identify-face"
+DB_SERVER_URL = "http://100.89.141.47:8001"
 
 @app.on_event("startup")
 async def startup():
