@@ -3,7 +3,7 @@
 # Dengan Dynamic Toggle untuk setiap fitur
 # ═══════════════════════════════════════════════════════════════
 
-import os
+import os 
 import sys
 import cv2
 import numpy as np
@@ -64,11 +64,11 @@ CONFIG = {
     "roi_enabled":              True,
     "roi_center_ratio":         0.35,
     "roi_expansion_frames":     30,
-    
+     
     # ========== DEEPFACE (Anti-Spoof) ==========
-    "deepface_enabled":         True               ,        # 🔥 ON/OFF DeepFace
+    "deepface_enabled":         False               ,        # 🔥 ON/OFF DeepFace
     "deepface_throttle_frames": 60,          # Setiap N frame
-    "deepface_spoof_threshold": 0.5,        # Score >= ini = SPOOF
+    "deepface_spoof_threshold": 0.85,        # Score >= ini = SPOOF
     
     # ========== MEDIAPIPE LIVENESS ==========
     "liveness_enabled":         True,        # 🔥 ON/OFF Liveness Challenge
@@ -142,7 +142,7 @@ def ask_run_mode() -> str:
     tk.Label(root, text="Pilih Mode Operasi", font=("Segoe UI", 13, "bold"), pady=14).pack()
     tk.Label(root, text="Mode Server  : kirim ke main.py, fallback lokal\n"
                         "Mode Lokal   : langsung dari face_database.pkl (testing)",
-             font=("Segoe UI", 9), justify="left", padx=20).pack()
+            font=("Segoe UI", 9), justify="left", padx=20).pack()
     btn_frame = tk.Frame(root, pady=16)
     btn_frame.pack()
     def pilih_server():
@@ -152,11 +152,11 @@ def ask_run_mode() -> str:
         result["mode"] = "local"
         root.destroy()
     tk.Button(btn_frame, text="  Mode Server  ", font=("Segoe UI", 10), width=14,
-              bg="#1a73e8", fg="white", relief="flat", cursor="hand2",
-              command=pilih_server).pack(side="left", padx=10)
+            bg="#1a73e8", fg="white", relief="flat", cursor="hand2",
+            command=pilih_server).pack(side="left", padx=10)
     tk.Button(btn_frame, text="  Mode Lokal  ", font=("Segoe UI", 10), width=14,
-              bg="#34a853", fg="white", relief="flat", cursor="hand2",
-              command=pilih_local).pack(side="left", padx=10)
+            bg="#34a853", fg="white", relief="flat", cursor="hand2",
+            command=pilih_local).pack(side="left", padx=10)
     root.protocol("WM_DELETE_WINDOW", pilih_local)
     root.mainloop()
     print(f"[MODE] Dipilih: {result['mode'].upper()}")
@@ -307,7 +307,7 @@ def detect_motion(frame, prev_small_frame=None):
     if prev_small_frame is None:
         return True, 0, small
     diff = cv2.absdiff(cv2.cvtColor(small, cv2.COLOR_BGR2GRAY),
-                       cv2.cvtColor(prev_small_frame, cv2.COLOR_BGR2GRAY))
+                    cv2.cvtColor(prev_small_frame, cv2.COLOR_BGR2GRAY))
     return np.sum(diff) > 0, np.sum(diff), small
 
 def extract_embedding(face_aligned, rec_model):
@@ -329,7 +329,7 @@ def recognize_hybrid(emb, face_database, threshold):
         return _recognize_local(emb, face_database, threshold, source_label="Local")
     embedding_list = emb.tolist()
     try:
-        res = requests.post(SERVER_URL, json={"embedding": embedding_list}, timeout=0.5)
+        res = requests.post(SERVER_URL, json={"embedding": embedding_list}, timeout=2.0)
         if res.status_code == 200:
             res_data = res.json()
             if res_data.get("status") == "success":
@@ -449,7 +449,7 @@ def alignment_worker_thread(stop_event):
         try:
             h, w = frame.shape[:2]
             mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, 
-                              data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             result = align_landmarker.detect(mp_img)
 
             if result.face_landmarks:
@@ -462,12 +462,12 @@ def alignment_worker_thread(stop_event):
                 angle = np.degrees(np.arctan2(dY, dX))
 
                 eye_center = (int((left_eye[0] + right_eye[0]) / 2), 
-                              int((left_eye[1] + right_eye[1]) / 2))
+                            int((left_eye[1] + right_eye[1]) / 2))
                 
                 M = cv2.getRotationMatrix2D(eye_center, angle, scale=1.0)
                 img_rotated = cv2.warpAffine(frame, M, (w, h), 
-                                             flags=cv2.INTER_CUBIC, 
-                                             borderMode=cv2.BORDER_REPLICATE)
+                                            flags=cv2.INTER_CUBIC, 
+                                            borderMode=cv2.BORDER_REPLICATE)
 
                 corners = np.array([
                     [x1, y1], [x2, y1], [x1, y2], [x2, y2]
@@ -547,7 +547,7 @@ def get_aligned_face(frame, box):
 # ═══════════════════════════════════════════════════════════════
 
 def detect_and_recognize(frame, yolo_model, rec_model, face_database, cfg,
-                          prev_detections=None, roi_bounds=None):
+                        prev_detections=None, roi_bounds=None):
     yolo_threshold = cfg["yolo_threshold"]
     recognition_threshold = cfg["recognition_threshold"]
 
@@ -590,7 +590,7 @@ def detect_and_recognize(frame, yolo_model, rec_model, face_database, cfg,
             face_ready = get_aligned_face(frame, box_full)
             if face_ready is None:
                 rec_data = {'nama': 'Unknown', 'nim': '-', 'confidence': 0.0,
-                           'is_recognized': False, 'source': 'Local'}
+                        'is_recognized': False, 'source': 'Local'}
                 unknown_skip_count = 5
             else:
                 emb = extract_embedding(face_ready, rec_model)
@@ -710,7 +710,7 @@ def frame_capture_thread(cap, stream_queue, detect_queue, stop_event, max_fps, c
     worker.run()
 
 def detection_worker_thread(yolo_model, rec_model, liveness_model, face_database, cfg,
-                             detect_queue, stop_event):
+                            detect_queue, stop_event):
     global last_granted_time, last_denied_time, last_granted_identity
     frozen_detections = {'detections': [], 'freeze_count': 0}
     
@@ -992,19 +992,19 @@ async def startup():
     stream_queue = queue.Queue(maxsize=1)
     detect_queue = queue.Queue(maxsize=1)
     threading.Thread(target=frame_capture_thread,
-                     args=(cap, stream_queue, detect_queue, _stop, CONFIG['max_fps'], CONFIG),
-                     daemon=True).start()
+                    args=(cap, stream_queue, detect_queue, _stop, CONFIG['max_fps'], CONFIG),
+                    daemon=True).start()
     threading.Thread(target=frame_stream_thread,
-                     args=(stream_queue, _stop, CONFIG),
-                     daemon=True).start()
+                    args=(stream_queue, _stop, CONFIG),
+                    daemon=True).start()
     threading.Thread(target=detection_worker_thread,
-                     args=(yolo_model, rec_model, liveness_model, face_database, CONFIG, detect_queue, _stop),
-                     daemon=True).start()
+                    args=(yolo_model, rec_model, liveness_model, face_database, CONFIG, detect_queue, _stop),
+                    daemon=True).start()
     
     if CONFIG.get("alignment_enabled", True):
         threading.Thread(target=alignment_worker_thread,
-                         args=(_stop,),
-                         daemon=True).start()
+                        args=(_stop,),
+                        daemon=True).start()
     
     print("✅ Threads started. HTTP:8000 WS:/ws/detect")
 
@@ -1035,6 +1035,7 @@ async def ws_detect(websocket: WebSocket):
         print(f"🔌 Client disconnected ({len(connected_clients)} left)")
 
 if __name__ == "__main__":
-    RUN_MODE = ask_run_mode()
+    #RUN_MODE = ask_run_mode()
+    RUN_MODE = "server"
     CONFIG["run_mode"] = RUN_MODE
     uvicorn.run(app, host="0.0.0.0", port=8000)

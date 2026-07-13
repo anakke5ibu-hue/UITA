@@ -38,6 +38,7 @@ __pycache__/
 recog/models/
 *.pkl
 
+
 venv_UI/
 recog/venv_recog/
 recog/.venv/

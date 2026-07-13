@@ -160,10 +160,10 @@ const loadSheetJs = () =>
 const exportToExcel = async (logs, filterLabel) => {
   const XLSX = await loadSheetJs()
   const rows = logs.map((l) => ({
-    Nama: l.nama,
+    Name: l.nama,
     NIM: l.nim,
-    Waktu: l.waktu,
-    Tanggal: l.tanggal,
+    Time: l.waktu,
+    Date: l.tanggal,
     Gate: l.gate || 'Gate 4',
     Status: l.status,
     'Confidence (%)': l.confidence ? (parseFloat(l.confidence) * 100).toFixed(2) : '-',
@@ -176,13 +176,14 @@ const exportToExcel = async (logs, filterLabel) => {
 
 // ─── Badge Status ─────────────────────────────────────────────
 const StatusBadge = ({ status }) => (
-  <span className={`text-xs font-bold px-3 py-1 rounded-full tracking-wide ${
+  <span className={`text-xs font-bold px-3 py-1 rounded-full tracking-wide font-mono ${
     status === 'GRANTED'
       ? 'bg-green-900/60 text-green-400 border border-green-500/40'
       : 'bg-red-900/60 text-red-400 border border-red-500/40'
   }`}>
     {status}
   </span>
+
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -190,6 +191,15 @@ const StatusBadge = ({ status }) => (
 // ═══════════════════════════════════════════════════════════════
 function DashboardPage() {
   const navigate = useNavigate()
+
+  // PROTEKSI LOGIN: Cek localStorage saat komponen dimuat
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn')
+    if (isLoggedIn !== 'true') {
+      navigate('/')
+    }
+  }, [navigate])
+
   const [activeTab, setActiveTab] = useState('log')
   const [logs, setLogs] = useState([])
   const [registeredUsers, setRegisteredUsers] = useState([])
@@ -203,6 +213,7 @@ function DashboardPage() {
   const [blokirAction, setBlokirAction] = useState(null)
   const [blokirSearchQuery, setBlokirSearchQuery] = useState('')
   const [stats, setStats] = useState({ granted: 0, denied: 0, total: 0 })
+  const [visible, setVisible] = useState(false)
 
   const wsRef = useRef(null)
   const nimCooldownRef = useRef({})
@@ -210,6 +221,7 @@ function DashboardPage() {
 
   // ─── Load data awal dari server ──────────────────────────────
   useEffect(() => {
+      setTimeout(() => setVisible(true), 100) 
     // Ambil log history dari server
     fetchLogs().then((data) => {
       setLogs(data)
@@ -231,13 +243,13 @@ function DashboardPage() {
   // ─── WebSocket: simpan realtime ke server ────────────────────
   useEffect(() => {
     const connect = () => {
-      const ws = new WebSocket('ws://localhost:8000/ws/detect')
+      const ws = new WebSocket(' wss://cosponsor-series-nuptials.ngrok-free.dev/ws/detect')
       wsRef.current = ws
 
-      ws.onopen = () => { setIsConnected(true); setWsStatus('Terhubung') }  
+      ws.onopen = () => { setIsConnected(true); setWsStatus('Connected') }  
       ws.onclose = () => {
         setIsConnected(false)
-        setWsStatus('Terputus — mencoba ulang...')
+        setWsStatus('Disconnected')
         setTimeout(connect, 3000)
       }
       ws.onerror = () => setWsStatus('Error koneksi')
@@ -259,7 +271,7 @@ function DashboardPage() {
           if (now - lastTime < COOLDOWN_MS) return
 
           nimCooldownRef.current[cooldownKey] = now
-          const dateNow = new Date()
+          const dateNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }))
           const newEntry = {
             id: now,
             nama: isGranted ? data.user?.nama || 'Tidak Dikenali' : 'Tidak Dikenali',
@@ -311,10 +323,10 @@ function DashboardPage() {
   })()
 
   const filterLabels = {
-    hari_ini: 'Hari Ini',
-    kemarin: 'Kemarin',
-    '2_hari_lalu': '2 Hari Lalu',
-    '1_bulan': '1 Bulan Terakhir',
+    hari_ini: 'Today',
+    kemarin: 'Yesterday',
+    '2_hari_lalu': '2 Days Ago',
+    '1_bulan': 'Last 1 Month',
   }
 
   const handleExport = async () => {
@@ -352,7 +364,7 @@ const handleUnblock = async (user) => {
 }
 
 const handleDelete = async (user) => {
-  if (!window.confirm(`Yakin ingin menghapus permanen user ${user.nama} (${user.nim})? Data tidak dapat dikembalikan.`)) return
+  if (!window.confirm(`Are you sure you want to permanently delete this user: ${user.nama} (${user.nim})? Data cannot be recovered.`)) return
   setBlokirAction(user.nim)
   const ok = await deleteUser(user.nim)
   if (ok) {
@@ -361,7 +373,7 @@ const handleDelete = async (user) => {
   setBlokirAction(null)
 }
 
-  // ─── Filter Blokir User ──────────────────────────────────────
+  // ─── Filter Block Users ──────────────────────────────────────
   const naturalSort = (str1, str2) => {
     return str1.localeCompare(str2, undefined, { numeric: true, sensitivity: 'base' })
   }
@@ -375,32 +387,38 @@ const handleDelete = async (user) => {
 
   // ─── RENDER ──────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-white" style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif" }}>
-
+    <div className="min-h-screen bg-gradient-to-br from-black via-red-950 to-black text-white " 
+    style={{ 
+      fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
+      opacity: visible ? 1 : 0,
+      transition: 'opacity 0.8s ease-in-out'
+      }}
+      >
       {/* NAVBAR */}
-      <nav className="bg-gray-900/95 backdrop-blur border-b border-gray-800 px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
+      <nav className="bg-white backdrop-blur  px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <img src={logo} alt="logo" className="w-8 h-8 object-contain" />
           <div>
-            <p className="text-white font-bold text-sm leading-tight">Face Recognition Gate</p>
-            <p className="text-gray-500 text-[11px]">Telkom University — Dashboard</p>
+            <p className="text-black font-bold text-sm leading-tight">Face Recognition Gate</p>
+            <p className="text-gray-900 text-[11px]">Dashboard</p>
           </div>
         </div>
-        <button   onClick={() => {
-              localStorage.removeItem('isLoggedIn')
-              navigate('/')
-            }} 
-            className="text-gray-400 hover:text-red-400 text-sm transition-all"
-          >
-            Logout →
+        <button
+          onClick={() => {
+            localStorage.removeItem('isLoggedIn')
+            navigate('/')
+          }} 
+          className="text-gray-700 hover:text-red-500 text-sm font-semibold transition-all duration-200 hover:scale-105"
+        >
+          Logout ⮞
         </button>
       </nav>
 
       {/* TAB MENU */}
-      <div className="bg-gray-900/80 border-b border-gray-800 px-6 flex justify-center gap-2">
+      <div className="bg-gray-500/80 px-6 flex justify-center gap-2 border-b border-gray-700/50">
         {[
-          { id: 'log', label: '📋 Log Akses' },
-          { id: 'blokir', label: '🚫 Blokir User' },
+          { id: 'log', label: '🗐 Log Access' },
+          { id: 'blokir', label: '𖨆 User Management' }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -408,7 +426,7 @@ const handleDelete = async (user) => {
             className={`px-5 py-3.5 text-sm font-medium transition-all duration-200 border-b-2 ${
               activeTab === tab.id
                 ? 'border-red-500 text-red-400'
-                : 'border-transparent text-gray-400 hover:text-white'
+                : 'border-transparent text-white hover:text-white/70   hover:border-gray-500/30'
             }`}
           >
             {tab.label}
@@ -416,9 +434,9 @@ const handleDelete = async (user) => {
         ))}
         <button
           onClick={() => navigate('/registrasi')}
-          className="px-5 py-3.5 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-400 hover:text-white"
+          className="px-5 py-3.5 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-white hover:text-white/70 hover:border-gray-500/30"
         >
-          ➕ Registrasi User
+          ✚ Register User
         </button>
       </div>
 
@@ -431,23 +449,23 @@ const handleDelete = async (user) => {
 
             {/* Stat cards */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center">
-                <p className="text-3xl font-bold text-green-400">{stats.granted}</p>
-                <p className="text-gray-500 text-xs mt-1 uppercase tracking-wider">Granted</p>
+              <div className="bg-gray-500/80 border border-gray-800 rounded-2xl p-4 text-center">
+                <p className="text-3xl font-bold text-red-400">{stats.granted}</p>
+                <p className="text-white text-xs mt-1 uppercase tracking-wider">Granted</p>
               </div>
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center">
+              <div className="bg-gray-500/80 border border-gray-800 rounded-2xl p-4 text-center">
                 <p className="text-3xl font-bold text-red-400">{stats.denied}</p>
-                <p className="text-gray-500 text-xs mt-1 uppercase tracking-wider">Denied</p>
+                <p className="text-white text-xs mt-1 uppercase tracking-wider">Denied</p>
               </div>
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 text-center">
-                <p className="text-3xl font-bold text-blue-400">{stats.total}</p>
-                <p className="text-gray-500 text-xs mt-1 uppercase tracking-wider">Total</p>
+              <div className="bg-gray-500/80 border border-gray-800 rounded-2xl p-4 text-center">
+                <p className="text-3xl font-bold text-red-400">{stats.total}</p>
+                <p className="text-white text-xs mt-1 uppercase tracking-wider">Total</p>
               </div>
             </div>
 
             {/* Status + Display Gate */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3 bg-gray-800/70 border border-gray-700 rounded-xl px-4 py-2">
+              <div className="flex items-center gap-3 bg-gray-500/70 border border-gray-800 rounded-xl px-4 py-2">
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
                 <span className={`text-xs font-mono ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
                   {wsStatus}
@@ -455,14 +473,14 @@ const handleDelete = async (user) => {
               </div>
               <button
                 onClick={() => window.open('/gate', '_blank')}
-                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-gray-200 hover:text-white px-4 py-2 rounded-xl text-sm font-medium transition-all"
+                className="flex items-center gap-2 bg-gray-500/80 hover:bg-gray-700/80 border border-slate-700 text-gray-200 hover:text-white px-4 py-2 rounded-xl text-sm font-medium transition-all"
               >
-                📺 Display Gate ↗
+                ⛶ Display Gate ⮞
               </button>
             </div>
 
             {/* Filter + Search + Export */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+            <div className="bg-gray-500/80 border border-gray-800 rounded-2xl p-4">
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(filterLabels).map(([key, label]) => (
@@ -472,7 +490,7 @@ const handleDelete = async (user) => {
                       className={`text-xs px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                         filter === key
                           ? 'bg-red-600 text-white shadow-lg shadow-red-900/40'
-                          : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 border border-gray-700'
+                          : 'bg-gray-800/80 text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-800'
                       }`}
                     >
                       {label}
@@ -484,68 +502,60 @@ const handleDelete = async (user) => {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari nama / NIM..."
-                    className="flex-1 sm:w-52 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-600/50 placeholder-gray-600"
+                    placeholder="🔎︎ Search by Name/NIM..."
+                    className="flex-1 sm:w-52 bg-gray-800/80 border border-gray-800 text-white text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-600/50 placeholder-gray-400"
                   />
                   <button
                     onClick={handleExport}
                     disabled={filteredLogs.length === 0 || exporting}
                     className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all ${
                       filteredLogs.length === 0 || exporting
-                        ? 'bg-gray-800 text-gray-600 border border-gray-700 cursor-not-allowed'
-                        : 'bg-emerald-700 hover:bg-emerald-600 text-white'
+                        ? 'bg-gray-800/80 text-white border border-gray-800 cursor-not-allowed'
+                        : 'bg-emerald-700 border border-emerald-600 hover:bg-emerald-600 text-white'
                     }`}
                   >
                     {exporting
                       ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Exporting...</>
-                      : <>📊 Export Excel</>}
+                      : <>🗁 Export Excel</>}
                   </button>
                 </div>
               </div>
-              <p className="text-gray-600 text-xs mt-3">
-                Menampilkan <span className="text-gray-400 font-semibold">{filteredLogs.length}</span> entri
-                {searchQuery && <> untuk "<span className="text-gray-400">{searchQuery}</span>"</>}
-                {' '}— <span className="text-gray-400">{filterLabels[filter]}</span>
+              <p className="text-white text-xs mt-3">
+                Showing <span className="text-white font-bold">{filteredLogs.length}</span> entries
+                {searchQuery && <> for "<span className="text-white">{searchQuery}</span>"</>}
+                {' '}— <span className="text-white">{filterLabels[filter]}</span>
               </p>
             </div>
 
             {/* Tabel Log */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-white text-sm">Log Aktivitas Akses</p>
-                  <p className="text-gray-500 text-xs mt-0.5">
-                    {loadingLogs ? 'Memuat...' : 'Tersimpan permanen di cloud ☁️'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
-                  <span className="text-xs text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
-                </div>
-              </div>
+            <div className="bg-gray-500/80 border border-gray-800 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-center bg-gray-800/50">
+              <p className="font-bold text-red-400 text-md text-center tracking-wide">
+                Access Log History
+              </p>
+            </div>
 
               {loadingLogs ? (
                 <div className="py-20 text-center">
                   <span className="w-8 h-8 border-2 border-gray-700 border-t-red-500 rounded-full animate-spin inline-block mb-3" />
-                  <p className="text-gray-500 text-sm">Memuat ...</p>
+                  <p className="text-white text-sm">Loading...</p>
                 </div>
               ) : filteredLogs.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-4xl mb-3">📋</p>
-                  <p className="text-gray-500 text-sm">
-                    {logs.length === 0 ? 'Belum ada data.' : 'Tidak ada data untuk filter ini'}
+                  <p className="text-4xl mb-3">🗐</p>
+                  <p className="text-white text-sm">
+                    {logs.length === 0 ? 'No data available.' : 'No data for this filter.'}
                   </p>
-                  {!isConnected && <p className="text-red-400 text-xs mt-2">⚠️ WebSocket tidak terhubung</p>}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-800 text-gray-500 text-[11px] uppercase tracking-wider">
-                        <th className="px-5 py-3 text-left">Nama</th>
+                      <tr className="border-b border-gray-800 text-gray-900 text-[13px] uppercase tracking-wider">
+                        <th className="px-5 py-3 text-left">Name</th>
                         <th className="px-5 py-3 text-left">NIM</th>
-                        <th className="px-5 py-3 text-left">Waktu</th>
-                        <th className="px-5 py-3 text-left hidden sm:table-cell">Tanggal</th>
+                        <th className="px-5 py-3 text-left">Time</th>
+                        <th className="px-5 py-3 text-left hidden sm:table-cell">Date</th>
                         <th className="px-5 py-3 text-left hidden lg:table-cell">Gate</th>
                         <th className="px-5 py-3 text-left hidden lg:table-cell">Confidence</th>
                         <th className="px-5 py-3 text-left">Status</th>
@@ -554,18 +564,18 @@ const handleDelete = async (user) => {
                     <tbody>
                       {filteredLogs.map((log) => (
                         <tr key={log.id} className="border-b border-gray-800/60 transition-colors hover:bg-gray-800/40">
-                          <td className="px-5 py-3.5 text-sm text-white font-medium">{log.nama}</td>
-                          <td className="px-5 py-3.5 text-sm text-gray-400 font-mono">{log.nim}</td>
-                          <td className="px-5 py-3.5 text-sm text-gray-400 font-mono">{log.waktu}</td>
-                          <td className="px-5 py-3.5 text-sm text-gray-500 hidden sm:table-cell">{log.tanggal}</td>
-                          <td className="px-5 py-3.5 text-sm text-gray-500 hidden lg:table-cell">{log.gate}</td>
-                          <td className="px-5 py-3.5 text-sm hidden lg:table-cell">
-                            {log.status === 'GRANTED' && log.confidence ? (
-                              <span className="text-gray-400 font-mono">
-                                {(parseFloat(log.confidence) * 100).toFixed(1)}%
-                              </span>
-                            ) : <span className="text-gray-700">—</span>}
-                          </td>
+                        <td className="px-5 py-3.5 text-sm text-white font-medium">{log.nama}</td>
+                        <td className="px-5 py-3.5 text-sm text-white font-mono">{log.nim}</td>
+                        <td className="px-5 py-3.5 text-sm text-white font-mono">{log.waktu}</td>
+                        <td className="px-5 py-3.5 text-sm text-white hidden sm:table-cell">{log.tanggal}</td>
+                        <td className="px-5 py-3.5 text-sm text-white hidden lg:table-cell">{log.gate}</td>
+                        <td className="px-5 py-3.5 text-sm hidden lg:table-cell">
+                          {log.status === 'GRANTED' && log.confidence ? (
+                            <span className="text-white font-mono">
+                              {(parseFloat(log.confidence) * 100).toFixed(1)}%
+                            </span>
+                          ) : <span className="text-gray-500">—</span>}
+                        </td>
                           <td className="px-5 py-3.5"><StatusBadge status={log.status} /></td>
                         </tr>
                       ))}
@@ -580,24 +590,21 @@ const handleDelete = async (user) => {
         {/* ══════ TAB: BLOKIR USER ══════ */}
         {activeTab === 'blokir' && (
           <div className="flex flex-col gap-5">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+            <div className="bg-gray-500/80 border border-gray-800 rounded-2xl overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-800">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-white text-sm">Manajemen Blokir Pengguna</p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      Data blokir tersimpan.
-                    </p>
+                    <p className="font-bold text-red-400 text-lg text-center items-center tracking-wide">User List</p>
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-56">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔎︎</span>
                       <input
                         type="text"
                         value={blokirSearchQuery}
                         onChange={(e) => setBlokirSearchQuery(e.target.value)}
-                        placeholder="Cari nama / NIM..."
-                        className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-600/50 placeholder-gray-600"
+                        placeholder="Search by Name/NIM..."
+                        className="w-full  bg-gray-800/80 border-gray-800 text-white text-sm rounded-lg pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-600/50 placeholder-gray-400"
                       />
                     </div>
                     {blokirSearchQuery && (
@@ -611,9 +618,9 @@ const handleDelete = async (user) => {
                   </div>
                 </div>
                 {!loadingBlokir && registeredUsers.length > 0 && (
-                  <p className="text-gray-600 text-xs mt-2.5">
-                    Menampilkan <span className="text-gray-400 font-semibold">{filteredBlokirUsers.length}</span> dari <span className="text-gray-400 font-semibold">{registeredUsers.length}</span> pengguna
-                    {blokirSearchQuery && <> untuk "<span className="text-gray-400">{blokirSearchQuery}</span>"</>}
+                  <p className="text-white text-xs mt-2.5">
+                    Showing <span className="text-white font-semibold">{filteredBlokirUsers.length}</span> of <span className="text-white font-semibold">{registeredUsers.length}</span> users
+                    {blokirSearchQuery && <> for "<span className="text-white">{blokirSearchQuery}</span>"</>}
                   </p>
                 )}
               </div>
@@ -621,32 +628,32 @@ const handleDelete = async (user) => {
               {loadingBlokir ? (
                 <div className="py-20 text-center">
                   <span className="w-8 h-8 border-2 border-gray-700 border-t-red-500 rounded-full animate-spin inline-block mb-3" />
-                  <p className="text-gray-500 text-sm">Memuat data blokir...</p>
+                  <p className="text-gray-500 text-sm">Loading user data... </p>
                 </div>
               ) : registeredUsers.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-4xl mb-3">👤</p>
-                  <p className="text-gray-500 text-sm">Belum ada pengguna terdaftar</p>
+                  <p className="text-4xl mb-3">𖨆</p>
+                  <p className="text-gray-500 text-sm">No registered users found.</p>
                 </div>
               ) : filteredBlokirUsers.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-4xl mb-3">🔍</p>
-                  <p className="text-gray-500 text-sm">Tidak ada pengguna dengan kata kunci "<span className="text-gray-400">{blokirSearchQuery}</span>"</p>
-                  <button onClick={() => setBlokirSearchQuery('')} className="mt-3 text-xs text-red-400 hover:text-red-300 underline">
-                    Hapus filter pencarian
+                  <p className="text-4xl mb-3">🔎︎</p>
+                  <p className="text-white text-sm">No users found for "<span className="text-white">{blokirSearchQuery}</span>"</p>
+                  <button onClick={() => setBlokirSearchQuery('')} className="mt-3 text-xs text-red-300 hover:text-red-200 underline">
+                    Clear Search Filter
                   </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-800 text-gray-500 text-[11px] uppercase tracking-wider">
-                        <th className="px-5 py-3 text-left">Nama</th>
+                      <tr className="border-b border-gray-800 text-gray-900 text-[13px] uppercase tracking-wider">
+                        <th className="px-5 py-3 text-left">Name</th>
                         <th className="px-5 py-3 text-left">NIM</th>
-                        <th className="px-5 py-3 text-left hidden md:table-cell">Jam Terakhir</th>
-                        <th className="px-5 py-3 text-left hidden sm:table-cell">Tanggal</th>
+                        <th className="px-5 py-3 text-left hidden md:table-cell">Last Time</th>
+                        <th className="px-5 py-3 text-left hidden sm:table-cell">Date</th>
                         <th className="px-5 py-3 text-left">Status</th>
-                        <th className="px-5 py-3 text-left">Aksi</th>
+                        <th className="px-5 py-3 text-left">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -655,14 +662,14 @@ const handleDelete = async (user) => {
                         return (
                           <tr key={user.nim} className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors">
                             <td className="px-5 py-3.5 text-sm text-white font-medium">{user.nama}</td>
-                            <td className="px-5 py-3.5 text-sm text-gray-400 font-mono">{user.nim}</td>
-                            <td className="px-5 py-3.5 text-sm text-gray-500 hidden md:table-cell">{user.jam_terakhir || '—'}</td>
-                            <td className="px-5 py-3.5 text-sm text-gray-500 hidden sm:table-cell">{user.tanggal_terakhir || '—'}</td>
+                            <td className="px-5 py-3.5 text-sm text-white font-mono">{user.nim}</td>
+                            <td className="px-5 py-3.5 text-sm text-white hidden md:table-cell">{user.jam_terakhir || '—'}</td>
+                            <td className="px-5 py-3.5 text-sm text-white hidden sm:table-cell">{user.tanggal_terakhir || '—'}</td>
                             <td className="px-5 py-3.5">
                               {user.is_blocked ? (
-                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-900/60 text-red-400 border border-red-500/30">BLOKIR</span>
+                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-900/60 text-red-400 border border-red-500/30">BLOCKED</span>
                               ) : (
-                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">AKTIF</span>
+                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/40 text-green-500 border border-green-500/30">ACTIVE</span>
                               )}
                             </td>
                            <td className="px-5 py-3.5">
@@ -681,7 +688,7 @@ const handleDelete = async (user) => {
                                   disabled={blokirAction === user.nim}
                                   className="flex items-center gap-1.5 text-xs bg-red-900/60 hover:bg-red-800 text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/40 transition-all disabled:opacity-50"
                                 >
-                                  {blokirAction === user.nim ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : '🚫'} Blokir
+                                  {blokirAction === user.nim ? <span className="w-3 h-3 border border-red-400/30 border-t-red-400 rounded-full animate-spin" /> : '🚫'} Block
                                 </button>
                               )}
                               <button
@@ -689,7 +696,7 @@ const handleDelete = async (user) => {
                                 disabled={blokirAction === user.nim}
                                 className="flex items-center gap-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-gray-500/40 transition-all disabled:opacity-50"
                               >
-                                {blokirAction === user.nim ? <span className="w-3 h-3 border border-gray-400/30 border-t-gray-400 rounded-full animate-spin" /> : '🗑️'} Hapus
+                                {blokirAction === user.nim ? <span className="w-3 h-3 border border-gray-400/30 border-t-gray-400 rounded-full animate-spin" /> : '🗑️'} Delete
                               </button>
                             </div>
                           </td>
