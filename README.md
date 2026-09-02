@@ -1,4 +1,4 @@
-# UI TA - Stand-alone Face Recognition System
+# Face Recognition for Parking Gate - UI 
 
 Sistem autentikasi akses gate parkir motor menggunakan pengenalan wajah (Face Recognition) secara stand-alone untuk Tugas Akhir di Telkom University.
 
