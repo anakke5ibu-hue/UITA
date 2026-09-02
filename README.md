@@ -8,6 +8,18 @@ Proyek ini terbagi menjadi dua bagian:
 1.  **Frontend**: Web dashboard menggunakan Vite + React.
 2.  **Recog Engine**: Pemrosesan AI menggunakan YOLOv11 dan ArcFace untuk deteksi dan pengenalan wajah.
 
+## 💡 What I Built
+
+**UITA** is a complete **face-recognition access control system** built for Telkom University's parking gate. Here's what it does:
+
+✅ **Intelligent Dashboard** — Real-time analytics with total users, access statistics, and a searchable authentication log that can be filtered by date range and exported to Excel.
+
+✅ **User Management** — Full CRUD operations with blocking/deletion capabilities and smart search functionality.
+
+✅ **Facial Registration** — Automated face capture powered by **MediaPipe Face Landmarker**, ensuring consistent and high-quality biometric data.
+
+✅ **Gate Terminal** — Real-time facial verification integrated with backend and database, delivering access decisions in under 6 seconds.
+
 ## 🛠️ Persyaratan Sistem
 
 *   **Node.js**: Versi 18 atau lebih baru.
