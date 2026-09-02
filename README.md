@@ -26,6 +26,14 @@ Proyek ini terbagi menjadi dua bagian:
 *   **Python**: Versi 3.10 atau 3.11 (Sangat disarankan).
 *   **Hardware**: Kamera (Webcam) untuk input stream video.
 
+## 👥 Collaborators
+
+| Name | Role | GitHub |
+|------|------|--------|
+| Muhammad Alif Syawaliana | Project Lead, Backend, Computer Vision Engineer & Database Engineer| [@anakkeSibu-hue](https://github.comanakkeSibu-hue) |
+| Rheira Nisrina Abiyah | Frontend Developer | [@username2](https://github.com/username2) |
+| Bilal Brilyawan | Anti-Spoofing & Liveness Detection Engineer | [@username3](https://github.com/username3) |
+
 ## 🔧 Panduan Instalasi & Penggunaan
 
 ### 1. Setup Frontend (Vite + React)
