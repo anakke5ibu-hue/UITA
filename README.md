@@ -30,8 +30,8 @@ Proyek ini terbagi menjadi dua bagian:
 
 | Name | Role | GitHub |
 |------|------|--------|
-| Muhammad Alif Syawaliana | Project Lead, Backend, Computer Vision Engineer & Database Engineer| [@anakkeSibu-hue](https://github.comanakkeSibu-hue) |
-| Rheira Nisrina Abiyah | Frontend Developer | [@username2](https://github.com/username2) |
+| Muhammad Alif Syawaliana | Project Lead, Backend, Computer Vision Engineer & Database Engineer| [@anakkeSibu-hue](https://github.com/anakkeSibu-hue) |
+| Rheira Nisrina Abiyah | Frontend Developer | [@rheira](https://github.com/rheira) |
 | Bilal Brilyawan | Anti-Spoofing & Liveness Detection Engineer | [@username3](https://github.com/username3) |
 
 ## 🔧 Panduan Instalasi & Penggunaan
